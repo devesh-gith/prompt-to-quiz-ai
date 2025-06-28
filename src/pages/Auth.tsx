@@ -27,8 +27,7 @@ const Auth = () => {
         <div className="bg-white py-8 px-6 shadow rounded-lg">
           {isSignUp ? (
             <SignUp 
-              afterSignUpUrl="/dashboard"
-              afterSignUpCompleteUrl="/dashboard"
+              fallbackRedirectUrl="/dashboard"
               appearance={{
                 elements: {
                   rootBox: "w-full",
@@ -38,7 +37,7 @@ const Auth = () => {
             />
           ) : (
             <SignIn 
-              afterSignInUrl="/dashboard"
+              fallbackRedirectUrl="/dashboard"
               appearance={{
                 elements: {
                   rootBox: "w-full",
