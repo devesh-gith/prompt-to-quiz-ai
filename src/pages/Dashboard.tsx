@@ -5,7 +5,11 @@ import { AppSidebar } from '@/components/AppSidebar'
 import { Outlet } from 'react-router-dom'
 
 const Dashboard = () => {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+
+  if (!isLoaded) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  }
 
   return (
     <>
