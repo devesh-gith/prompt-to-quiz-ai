@@ -1,6 +1,5 @@
-
 import { NavLink, useLocation } from 'react-router-dom'
-import { Image, Youtube, FileText, MessageSquare, Sparkles, Home, Key } from 'lucide-react'
+import { Image, Youtube, FileText, MessageSquare, Sparkles, Home } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -21,7 +20,6 @@ const menuItems = [
   { title: "PDF to Quiz", url: "/dashboard/pdf-quiz", icon: FileText },
   { title: "Text to Quiz", url: "/dashboard/text-quiz", icon: MessageSquare },
   { title: "Prompt to Quiz", url: "/dashboard/prompt-quiz", icon: Sparkles },
-  { title: "API Keys", url: "/dashboard/api-keys", icon: Key },
 ]
 
 export function AppSidebar() {

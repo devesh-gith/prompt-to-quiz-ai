@@ -20,6 +20,12 @@ serve(async (req) => {
       throw new Error('YouTube URL is required');
     }
 
+    // Check if OpenAI API key is available
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key is not configured. Please add your OpenAI API key to the project secrets.');
+    }
+
     // Validate if it's a proper URL
     try {
       new URL(youtubeUrl);
@@ -48,18 +54,28 @@ serve(async (req) => {
     
     console.log('Extracted YouTube video ID:', videoId);
 
-    // Check if OpenAI API key is available
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key is not configured. Please add your OpenAI API key to the project secrets.');
+    // Try to get video metadata from YouTube's oEmbed API (public API, no key needed)
+    let videoTitle = '';
+    let videoDescription = '';
+    
+    try {
+      const oembedResponse = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(youtubeUrl)}&format=json`);
+      if (oembedResponse.ok) {
+        const oembedData = await oembedResponse.json();
+        videoTitle = oembedData.title || '';
+        console.log('Retrieved video title:', videoTitle);
+      }
+    } catch (e) {
+      console.log('Could not retrieve video metadata, proceeding with URL analysis');
     }
 
-    // Get video transcript using YouTube Transcript API approach
-    // Since we can't directly access YouTube's API without additional setup,
-    // we'll use OpenAI to generate quiz content based on the video URL
+    // Enhanced prompt with video metadata
+    const videoContext = videoTitle 
+      ? `Video Title: "${videoTitle}"\nVideo URL: ${youtubeUrl}`
+      : `Video URL: ${youtubeUrl}`;
+
     console.log('Generating quiz content based on YouTube video...');
     
-    // First, let's try a different approach - generate quiz based on video topic
     const videoInfoResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -71,11 +87,29 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that analyzes YouTube videos and creates educational content. When given a YouTube URL, you should generate a realistic transcript-like content and then create quiz questions based on common educational topics that might be covered in such videos.'
+            content: 'You are an expert at creating educational quizzes from video content. You will analyze the provided video information and create specific, relevant quiz questions. Focus on creating questions that would test understanding of the actual video content, not generic questions. Base your questions on the title and context provided.'
           },
           {
             role: 'user',
-            content: `Based on this YouTube video URL: ${youtubeUrl}, please first generate a realistic educational transcript (200-500 words) about what this video might contain, then create 5 multiple choice quiz questions. Format your response as JSON with this structure: {"transcript": "...", "questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}]}`
+            content: `Create a quiz based on this specific YouTube video:
+
+${videoContext}
+
+Please analyze what this video is likely about based on the title and URL, then create 5 multiple choice quiz questions that would specifically test someone's understanding of this video's content. Make the questions specific to what someone would learn from watching this particular video.
+
+Format your response as JSON with this structure:
+{
+  "questions": [
+    {
+      "question": "...",
+      "options": ["A", "B", "C", "D"],
+      "correct": 0,
+      "explanation": "..."
+    }
+  ]
+}
+
+The "correct" field should be the index (0-3) of the correct answer in the options array.`
           }
         ],
         response_format: { type: "json_object" }
@@ -98,8 +132,8 @@ serve(async (req) => {
     
     const result = JSON.parse(videoInfoData.choices[0].message.content);
     
-    if (!result.transcript || !result.questions || !Array.isArray(result.questions)) {
-      throw new Error('Failed to generate proper transcript and quiz from the YouTube video. Please try again.');
+    if (!result.questions || !Array.isArray(result.questions)) {
+      throw new Error('Failed to generate proper quiz from the YouTube video. Please try again.');
     }
 
     // Validate and format quiz questions to match the expected structure
@@ -120,7 +154,7 @@ serve(async (req) => {
       throw new Error('Failed to generate valid quiz questions. Please try again.');
     }
 
-    console.log(`Successfully generated ${validQuestions.length} quiz questions`);
+    console.log(`Successfully generated ${validQuestions.length} quiz questions for video: ${videoTitle || 'Unknown'}`);
 
     return new Response(JSON.stringify({
       questions: validQuestions
