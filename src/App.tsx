@@ -26,31 +26,37 @@ if (!PUBLISHABLE_KEY) {
   throw new Error("Missing Publishable Key")
 }
 
-const App = () => (
-  <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />}>
-              <Route index element={<DashboardHome />} />
-              <Route path="image-quiz" element={<ImageQuiz />} />
-              <Route path="youtube-quiz" element={<YouTubeQuiz />} />
-              <Route path="pdf-quiz" element={<PDFQuiz />} />
-              <Route path="text-quiz" element={<TextQuiz />} />
-              <Route path="prompt-quiz" element={<PromptQuiz />} />
-              <Route path="api-keys" element={<ApiKeys />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ClerkProvider>
-);
+console.log("App component loading...");
+
+const App = () => {
+  console.log("Rendering App component");
+  
+  return (
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<Dashboard />}>
+                <Route index element={<DashboardHome />} />
+                <Route path="image-quiz" element={<ImageQuiz />} />
+                <Route path="youtube-quiz" element={<YouTubeQuiz />} />
+                <Route path="pdf-quiz" element={<PDFQuiz />} />
+                <Route path="text-quiz" element={<TextQuiz />} />
+                <Route path="prompt-quiz" element={<PromptQuiz />} />
+                <Route path="api-keys" element={<ApiKeys />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
+  );
+};
 
 export default App;
