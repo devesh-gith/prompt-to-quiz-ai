@@ -43,6 +43,13 @@ serve(async (req) => {
       );
     }
 
+    const videoId = videoIdMatch[1];
+    console.log('Extracted video ID:', videoId);
+
+    // Convert YouTube URL to a format that AssemblyAI can process
+    // Using the full YouTube URL but with proper formatting
+    const processableUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    
     console.log('Starting transcription with AssemblyAI...');
 
     // Use AssemblyAI to transcribe the YouTube video
@@ -53,17 +60,27 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        audio_url: youtubeUrl,
+        audio_url: processableUrl,
         auto_chapters: false,
         language_detection: true,
+        speech_model: 'best',
       }),
     });
 
     if (!transcriptionResponse.ok) {
       const errorText = await transcriptionResponse.text();
       console.error('AssemblyAI API error:', transcriptionResponse.status, errorText);
+      
+      // More specific error handling
+      if (transcriptionResponse.status === 400) {
+        return new Response(
+          JSON.stringify({ error: 'The YouTube URL provided is not accessible or does not contain audio content. Please try a different video or check if the video is publicly available.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: `Transcription service error: ${transcriptionResponse.status}` }),
+        JSON.stringify({ error: `Transcription service error: ${transcriptionResponse.status}. Please try again or use a different YouTube video.` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -73,10 +90,10 @@ serve(async (req) => {
 
     console.log('Transcription started, ID:', transcriptId);
 
-    // Poll for transcription completion
+    // Poll for transcription completion with better error handling
     let transcript;
     let attempts = 0;
-    const maxAttempts = 120; // 10 minutes timeout (5 second intervals)
+    const maxAttempts = 60; // 5 minutes timeout (5 second intervals)
 
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
@@ -102,20 +119,32 @@ serve(async (req) => {
         break;
       } else if (statusData.status === 'error') {
         console.error('Transcription error:', statusData.error);
-        throw new Error(`Transcription failed: ${statusData.error || 'Unknown error'}`);
+        
+        // Provide more specific error messages based on the error type
+        let errorMessage = 'Failed to transcribe the video. ';
+        if (statusData.error && statusData.error.includes('audio')) {
+          errorMessage += 'The video may not contain clear audio content or may be too short.';
+        } else if (statusData.error && statusData.error.includes('access')) {
+          errorMessage += 'The video may be private or restricted.';
+        } else {
+          errorMessage += 'Please try with a different YouTube video.';
+        }
+        
+        throw new Error(errorMessage);
       }
 
       attempts++;
     }
 
     if (!transcript) {
-      throw new Error('Transcription timeout - the video may be too long or the service is busy');
+      throw new Error('Transcription timeout - the video may be too long or the service is busy. Please try with a shorter video or try again later.');
     }
 
     if (transcript.length < 50) {
-      throw new Error('Transcript too short - the video may not contain enough speech content');
+      throw new Error('The transcript is too short to generate meaningful questions. Please try with a video that has more spoken content.');
     }
 
+    console.log('Transcript length:', transcript.length, 'characters');
     console.log('Generating quiz with OpenAI...');
 
     // Generate quiz questions using OpenAI based on the transcript
@@ -130,11 +159,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the YouTube video transcript. You MUST respond with ONLY a valid JSON object, no markdown formatting, no code blocks, no additional text. The format should be: {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correct": 0, "explanation": "..."}]}`
+            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the YouTube video transcript. CRITICAL: You MUST respond with ONLY a valid JSON object. Do not include markdown formatting, code blocks, or any other text. The JSON should have this exact structure: {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correct": 0, "explanation": "..."}]}`
           },
           {
             role: 'user',
-            content: `Generate ${questionCount} quiz questions from this YouTube video transcript. Focus on the main topics and key information:\n\n${transcript.substring(0, 8000)}`
+            content: `Generate ${questionCount} quiz questions from this YouTube video transcript. Focus on key concepts, facts, and important information discussed in the video:\n\n${transcript.substring(0, 8000)}`
           }
         ],
         temperature: 0.7,
@@ -155,15 +184,18 @@ serve(async (req) => {
     console.log('Raw OpenAI response:', content);
     
     try {
-      // Clean the response by removing markdown code blocks if present
+      // Clean the response by removing any potential markdown formatting
       let cleanedContent = content.trim();
       
-      // Remove markdown code blocks (```json ... ```)
+      // Remove markdown code blocks if present
       if (cleanedContent.startsWith('```json')) {
         cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
       } else if (cleanedContent.startsWith('```')) {
         cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
+      
+      // Remove any leading/trailing whitespace or newlines
+      cleanedContent = cleanedContent.trim();
       
       console.log('Cleaned content for parsing:', cleanedContent);
       
@@ -174,6 +206,23 @@ serve(async (req) => {
         throw new Error('Invalid quiz format: missing questions array');
       }
       
+      if (quiz.questions.length === 0) {
+        throw new Error('No questions were generated from the video content');
+      }
+      
+      // Validate each question
+      for (let i = 0; i < quiz.questions.length; i++) {
+        const q = quiz.questions[i];
+        if (!q.question || !q.options || !Array.isArray(q.options) || q.options.length !== 4) {
+          throw new Error(`Invalid question format at index ${i}`);
+        }
+        if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= 4) {
+          throw new Error(`Invalid correct answer index at question ${i}`);
+        }
+      }
+      
+      console.log('Quiz validation successful, returning quiz with', quiz.questions.length, 'questions');
+      
       return new Response(JSON.stringify(quiz), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -182,9 +231,8 @@ serve(async (req) => {
       console.error('Parse error:', parseError);
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to generate valid quiz format',
-          details: parseError.message,
-          rawResponse: content
+          error: 'Failed to generate valid quiz format. Please try again.',
+          details: parseError.message
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -194,7 +242,7 @@ serve(async (req) => {
     console.error('Error in generate-youtube-quiz function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'An unexpected error occurred',
+        error: error.message || 'An unexpected error occurred while processing the video',
         type: 'function_error'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
