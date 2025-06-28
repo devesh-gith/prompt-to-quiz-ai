@@ -25,6 +25,22 @@ serve(async (req) => {
       );
     }
 
+    if (!googleVisionApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'Google Vision API key is not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!openAIApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key is not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Starting image analysis with Google Vision API...');
+
     // First, analyze the image with Google Vision API
     const visionResponse = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${googleVisionApiKey}`, {
       method: 'POST',
@@ -45,12 +61,35 @@ serve(async (req) => {
       }),
     });
 
+    console.log('Vision API response status:', visionResponse.status);
+
     if (!visionResponse.ok) {
-      throw new Error(`Google Vision API error: ${visionResponse.status}`);
+      const errorText = await visionResponse.text();
+      console.error('Google Vision API error:', visionResponse.status, errorText);
+      return new Response(
+        JSON.stringify({ 
+          error: `Google Vision API error: ${visionResponse.status}`,
+          details: errorText 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const visionData = await visionResponse.json();
+    console.log('Vision API analysis complete');
+
     const annotations = visionData.responses[0];
+    
+    if (annotations.error) {
+      console.error('Vision API returned error:', annotations.error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Vision API analysis failed',
+          details: annotations.error 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Extract information from Vision API response
     const labels = annotations.labelAnnotations?.map(label => label.description) || [];
@@ -58,6 +97,9 @@ serve(async (req) => {
     const objects = annotations.localizedObjectAnnotations?.map(obj => obj.name) || [];
 
     const imageDescription = `Labels detected: ${labels.join(', ')}. Text found: ${texts.join(' ')}. Objects: ${objects.join(', ')}.`;
+    
+    console.log('Image description:', imageDescription);
+    console.log('Generating quiz with OpenAI...');
 
     // Generate quiz questions using OpenAI based on the image analysis
     const quizResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -83,11 +125,21 @@ serve(async (req) => {
     });
 
     if (!quizResponse.ok) {
-      throw new Error(`OpenAI API error: ${quizResponse.status}`);
+      const errorText = await quizResponse.text();
+      console.error('OpenAI API error:', quizResponse.status, errorText);
+      return new Response(
+        JSON.stringify({ 
+          error: `OpenAI API error: ${quizResponse.status}`,
+          details: errorText 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const quizData = await quizResponse.json();
     const content = quizData.choices[0].message.content;
+    
+    console.log('Quiz generation complete');
     
     try {
       const quiz = JSON.parse(content);
