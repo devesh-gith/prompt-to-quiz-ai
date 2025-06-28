@@ -113,7 +113,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the image analysis provided. Format your response as a JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation".`
+            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the image analysis provided. You MUST respond with ONLY a valid JSON object, no markdown formatting, no code blocks, no additional text. The format should be: {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correct": 0, "explanation": "..."}]}`
           },
           {
             role: 'user',
@@ -140,16 +140,40 @@ serve(async (req) => {
     const content = quizData.choices[0].message.content;
     
     console.log('Quiz generation complete');
+    console.log('Raw OpenAI response:', content);
     
     try {
-      const quiz = JSON.parse(content);
+      // Clean the response by removing markdown code blocks if present
+      let cleanedContent = content.trim();
+      
+      // Remove markdown code blocks (```json ... ```)
+      if (cleanedContent.startsWith('```json')) {
+        cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedContent.startsWith('```')) {
+        cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      console.log('Cleaned content for parsing:', cleanedContent);
+      
+      const quiz = JSON.parse(cleanedContent);
+      
+      // Validate the quiz structure
+      if (!quiz.questions || !Array.isArray(quiz.questions)) {
+        throw new Error('Invalid quiz format: missing questions array');
+      }
+      
       return new Response(JSON.stringify(quiz), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (parseError) {
       console.error('Failed to parse OpenAI response:', content);
+      console.error('Parse error:', parseError);
       return new Response(
-        JSON.stringify({ error: 'Failed to generate valid quiz format' }),
+        JSON.stringify({ 
+          error: 'Failed to generate valid quiz format',
+          details: parseError.message,
+          rawResponse: content
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
