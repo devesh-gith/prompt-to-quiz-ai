@@ -20,7 +20,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 // Import your publishable key
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_bGl2ZS1zaGFkLTUxLmNsZXJrLmFjY291bnRzLmRldiQ"
 
 if (!PUBLISHABLE_KEY) {
   throw new Error("Missing Publishable Key")
