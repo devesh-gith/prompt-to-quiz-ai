@@ -18,10 +18,19 @@ serve(async (req) => {
   try {
     const { youtubeUrl, questionCount = 5 } = await req.json();
 
+    console.log('Processing YouTube URL:', youtubeUrl);
+
     if (!youtubeUrl) {
       return new Response(
         JSON.stringify({ error: 'YouTube URL is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!assemblyAIApiKey || !openAIApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required API keys. Please configure AssemblyAI and OpenAI API keys.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -34,6 +43,8 @@ serve(async (req) => {
       );
     }
 
+    console.log('Starting transcription with AssemblyAI...');
+
     // Use AssemblyAI to transcribe the YouTube video
     const transcriptionResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
       method: 'POST',
@@ -43,46 +54,69 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         audio_url: youtubeUrl,
-        auto_chapters: true,
+        auto_chapters: false,
+        language_detection: true,
       }),
     });
 
     if (!transcriptionResponse.ok) {
-      throw new Error(`AssemblyAI API error: ${transcriptionResponse.status}`);
+      const errorText = await transcriptionResponse.text();
+      console.error('AssemblyAI API error:', transcriptionResponse.status, errorText);
+      return new Response(
+        JSON.stringify({ error: `Transcription service error: ${transcriptionResponse.status}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const transcriptionData = await transcriptionResponse.json();
     const transcriptId = transcriptionData.id;
 
+    console.log('Transcription started, ID:', transcriptId);
+
     // Poll for transcription completion
     let transcript;
     let attempts = 0;
-    const maxAttempts = 60; // 5 minutes timeout
+    const maxAttempts = 120; // 10 minutes timeout (5 second intervals)
 
     while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+      
       const statusResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
         headers: {
           'Authorization': assemblyAIApiKey,
         },
       });
 
+      if (!statusResponse.ok) {
+        console.error('Error checking transcription status:', statusResponse.status);
+        attempts++;
+        continue;
+      }
+
       const statusData = await statusResponse.json();
+      console.log('Transcription status:', statusData.status);
       
       if (statusData.status === 'completed') {
         transcript = statusData.text;
+        console.log('Transcription completed successfully');
         break;
       } else if (statusData.status === 'error') {
-        throw new Error('Transcription failed');
+        console.error('Transcription error:', statusData.error);
+        throw new Error(`Transcription failed: ${statusData.error || 'Unknown error'}`);
       }
 
-      // Wait 5 seconds before next check
-      await new Promise(resolve => setTimeout(resolve, 5000));
       attempts++;
     }
 
     if (!transcript) {
-      throw new Error('Transcription timeout');
+      throw new Error('Transcription timeout - the video may be too long or the service is busy');
     }
+
+    if (transcript.length < 50) {
+      throw new Error('Transcript too short - the video may not contain enough speech content');
+    }
+
+    console.log('Generating quiz with OpenAI...');
 
     // Generate quiz questions using OpenAI based on the transcript
     const quizResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -96,33 +130,62 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the YouTube video transcript. Format your response as a JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation".`
+            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the YouTube video transcript. You MUST respond with ONLY a valid JSON object, no markdown formatting, no code blocks, no additional text. The format should be: {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correct": 0, "explanation": "..."}]}`
           },
           {
             role: 'user',
-            content: `Generate ${questionCount} quiz questions from this YouTube video transcript:\n\n${transcript}`
+            content: `Generate ${questionCount} quiz questions from this YouTube video transcript. Focus on the main topics and key information:\n\n${transcript.substring(0, 8000)}`
           }
         ],
         temperature: 0.7,
+        max_tokens: 2000,
       }),
     });
 
     if (!quizResponse.ok) {
-      throw new Error(`OpenAI API error: ${quizResponse.status}`);
+      const errorText = await quizResponse.text();
+      console.error('OpenAI API error:', quizResponse.status, errorText);
+      throw new Error(`Quiz generation failed: ${quizResponse.status}`);
     }
 
     const quizData = await quizResponse.json();
     const content = quizData.choices[0].message.content;
     
+    console.log('Quiz generation complete');
+    console.log('Raw OpenAI response:', content);
+    
     try {
-      const quiz = JSON.parse(content);
+      // Clean the response by removing markdown code blocks if present
+      let cleanedContent = content.trim();
+      
+      // Remove markdown code blocks (```json ... ```)
+      if (cleanedContent.startsWith('```json')) {
+        cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedContent.startsWith('```')) {
+        cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      console.log('Cleaned content for parsing:', cleanedContent);
+      
+      const quiz = JSON.parse(cleanedContent);
+      
+      // Validate the quiz structure
+      if (!quiz.questions || !Array.isArray(quiz.questions)) {
+        throw new Error('Invalid quiz format: missing questions array');
+      }
+      
       return new Response(JSON.stringify(quiz), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (parseError) {
       console.error('Failed to parse OpenAI response:', content);
+      console.error('Parse error:', parseError);
       return new Response(
-        JSON.stringify({ error: 'Failed to generate valid quiz format' }),
+        JSON.stringify({ 
+          error: 'Failed to generate valid quiz format',
+          details: parseError.message,
+          rawResponse: content
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -130,7 +193,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in generate-youtube-quiz function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'An unexpected error occurred',
+        type: 'function_error'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
