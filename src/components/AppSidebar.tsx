@@ -43,7 +43,7 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible>
+    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible="icon">
       <div className="p-4 border-b border-gray-200">
         <SidebarTrigger className="mb-2" />
         {!collapsed && (
