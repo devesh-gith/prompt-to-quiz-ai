@@ -30,16 +30,19 @@ const Header = () => {
 
         <div className="flex items-center space-x-4">
           <SignedOut>
-            <SignInButton fallbackRedirectUrl="/dashboard">
-              <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-                Sign In
-              </Button>
-            </SignInButton>
-            <SignInButton fallbackRedirectUrl="/dashboard" mode="modal">
-              <Button className="bg-black text-white hover:bg-gray-800">
-                Get Started
-              </Button>
-            </SignInButton>
+            <Button 
+              variant="outline" 
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              onClick={() => navigate('/auth')}
+            >
+              Sign In
+            </Button>
+            <Button 
+              className="bg-black text-white hover:bg-gray-800"
+              onClick={() => navigate('/auth')}
+            >
+              Get Started
+            </Button>
           </SignedOut>
           <SignedIn>
             <Button 
