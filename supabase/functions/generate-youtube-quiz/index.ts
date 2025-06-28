@@ -46,91 +46,145 @@ serve(async (req) => {
     const videoId = videoIdMatch[1];
     console.log('Extracted video ID:', videoId);
 
-    // Convert YouTube URL to a format that AssemblyAI can process
-    // Using the full YouTube URL but with proper formatting
-    const processableUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    
+    // First, try to get video metadata from YouTube API to check if video exists and is accessible
+    try {
+      const youtubeApiResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=AIzaSyAU_fr9ubrOlmxMpun_AgV5VmYWZSNKlgc&part=snippet,contentDetails,status`);
+      
+      if (youtubeApiResponse.ok) {
+        const youtubeData = await youtubeApiResponse.json();
+        if (!youtubeData.items || youtubeData.items.length === 0) {
+          return new Response(
+            JSON.stringify({ error: 'Video not found or is private. Please check the YouTube URL and try again.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const videoInfo = youtubeData.items[0];
+        console.log('Video title:', videoInfo.snippet.title);
+        console.log('Video duration:', videoInfo.contentDetails.duration);
+        
+        // Check if video is too long (over 2 hours)
+        const duration = videoInfo.contentDetails.duration;
+        const hours = duration.match(/(\d+)H/);
+        if (hours && parseInt(hours[1]) > 2) {
+          return new Response(
+            JSON.stringify({ error: 'Video is too long. Please try with a video shorter than 2 hours.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    } catch (youtubeError) {
+      console.log('YouTube API check failed, proceeding with transcription anyway:', youtubeError);
+    }
+
     console.log('Starting transcription with AssemblyAI...');
 
-    // Use AssemblyAI to transcribe the YouTube video
-    const transcriptionResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-      method: 'POST',
-      headers: {
-        'Authorization': assemblyAIApiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        audio_url: processableUrl,
-        auto_chapters: false,
-        language_detection: true,
-        speech_model: 'best',
-      }),
-    });
+    // Use AssemblyAI with the YouTube URL - try different URL formats
+    const urlsToTry = [
+      `https://www.youtube.com/watch?v=${videoId}`,
+      `https://youtu.be/${videoId}`,
+      youtubeUrl
+    ];
+    
+    let transcriptionData;
+    let transcriptionError;
+    
+    for (const urlToTry of urlsToTry) {
+      console.log('Trying URL format:', urlToTry);
+      
+      try {
+        const transcriptionResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+          method: 'POST',
+          headers: {
+            'Authorization': assemblyAIApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            audio_url: urlToTry,
+            auto_chapters: false,
+            language_detection: true,
+            speech_model: 'best',
+            punctuate: true,
+            format_text: true,
+          }),
+        });
 
-    if (!transcriptionResponse.ok) {
-      const errorText = await transcriptionResponse.text();
-      console.error('AssemblyAI API error:', transcriptionResponse.status, errorText);
-      
-      // More specific error handling
-      if (transcriptionResponse.status === 400) {
-        return new Response(
-          JSON.stringify({ error: 'The YouTube URL provided is not accessible or does not contain audio content. Please try a different video or check if the video is publicly available.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (transcriptionResponse.ok) {
+          transcriptionData = await transcriptionResponse.json();
+          console.log('Transcription request successful with URL:', urlToTry);
+          break;
+        } else {
+          const errorText = await transcriptionResponse.text();
+          transcriptionError = `${transcriptionResponse.status}: ${errorText}`;
+          console.log('Failed with URL:', urlToTry, 'Error:', transcriptionError);
+        }
+      } catch (error) {
+        transcriptionError = error.message;
+        console.log('Exception with URL:', urlToTry, 'Error:', error.message);
       }
-      
+    }
+    
+    if (!transcriptionData) {
+      console.error('All URL formats failed. Last error:', transcriptionError);
       return new Response(
-        JSON.stringify({ error: `Transcription service error: ${transcriptionResponse.status}. Please try again or use a different YouTube video.` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: 'Unable to process this YouTube video. The video may be private, restricted, or not contain sufficient audio content. Please try with a different public YouTube video that has clear spoken content.',
+          details: transcriptionError
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const transcriptionData = await transcriptionResponse.json();
     const transcriptId = transcriptionData.id;
-
     console.log('Transcription started, ID:', transcriptId);
 
-    // Poll for transcription completion with better error handling
+    // Poll for transcription completion
     let transcript;
     let attempts = 0;
-    const maxAttempts = 60; // 5 minutes timeout (5 second intervals)
+    const maxAttempts = 120; // 10 minutes timeout (5 second intervals)
 
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
       
-      const statusResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
-        headers: {
-          'Authorization': assemblyAIApiKey,
-        },
-      });
+      try {
+        const statusResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
+          headers: {
+            'Authorization': assemblyAIApiKey,
+          },
+        });
 
-      if (!statusResponse.ok) {
-        console.error('Error checking transcription status:', statusResponse.status);
-        attempts++;
-        continue;
-      }
-
-      const statusData = await statusResponse.json();
-      console.log('Transcription status:', statusData.status);
-      
-      if (statusData.status === 'completed') {
-        transcript = statusData.text;
-        console.log('Transcription completed successfully');
-        break;
-      } else if (statusData.status === 'error') {
-        console.error('Transcription error:', statusData.error);
-        
-        // Provide more specific error messages based on the error type
-        let errorMessage = 'Failed to transcribe the video. ';
-        if (statusData.error && statusData.error.includes('audio')) {
-          errorMessage += 'The video may not contain clear audio content or may be too short.';
-        } else if (statusData.error && statusData.error.includes('access')) {
-          errorMessage += 'The video may be private or restricted.';
-        } else {
-          errorMessage += 'Please try with a different YouTube video.';
+        if (!statusResponse.ok) {
+          console.error('Error checking transcription status:', statusResponse.status);
+          attempts++;
+          continue;
         }
+
+        const statusData = await statusResponse.json();
+        console.log('Transcription status:', statusData.status);
         
-        throw new Error(errorMessage);
+        if (statusData.status === 'completed') {
+          transcript = statusData.text;
+          console.log('Transcription completed successfully');
+          break;
+        } else if (statusData.status === 'error') {
+          console.error('Transcription error:', statusData.error);
+          
+          let errorMessage = 'Failed to transcribe the video. ';
+          if (statusData.error && statusData.error.includes('audio')) {
+            errorMessage += 'The video may not contain clear audio content or may be too short.';
+          } else if (statusData.error && statusData.error.includes('access')) {
+            errorMessage += 'The video may be private or restricted.';
+          } else {
+            errorMessage += 'Please try with a different YouTube video.';
+          }
+          
+          throw new Error(errorMessage);
+        }
+      } catch (statusError) {
+        console.error('Error checking status:', statusError);
+        if (statusError.message.includes('Failed to transcribe')) {
+          throw statusError;
+        }
       }
 
       attempts++;
@@ -140,7 +194,7 @@ serve(async (req) => {
       throw new Error('Transcription timeout - the video may be too long or the service is busy. Please try with a shorter video or try again later.');
     }
 
-    if (transcript.length < 50) {
+    if (transcript.length < 100) {
       throw new Error('The transcript is too short to generate meaningful questions. Please try with a video that has more spoken content.');
     }
 
@@ -159,11 +213,31 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the YouTube video transcript. CRITICAL: You MUST respond with ONLY a valid JSON object. Do not include markdown formatting, code blocks, or any other text. The JSON should have this exact structure: {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correct": 0, "explanation": "..."}]}`
+            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the YouTube video transcript. 
+
+CRITICAL INSTRUCTIONS:
+1. You MUST respond with ONLY a valid JSON object
+2. Do NOT include markdown formatting, code blocks, or any other text
+3. Do NOT wrap your response in \`\`\`json or any other formatting
+4. Start your response directly with { and end with }
+
+The JSON must have this exact structure:
+{
+  "questions": [
+    {
+      "question": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct": 0,
+      "explanation": "Brief explanation of why this is correct"
+    }
+  ]
+}
+
+Make sure each question tests understanding of key concepts from the video.`
           },
           {
             role: 'user',
-            content: `Generate ${questionCount} quiz questions from this YouTube video transcript. Focus on key concepts, facts, and important information discussed in the video:\n\n${transcript.substring(0, 8000)}`
+            content: `Generate ${questionCount} quiz questions from this YouTube video transcript. Focus on key concepts, facts, and important information discussed in the video:\n\n${transcript.substring(0, 10000)}`
           }
         ],
         temperature: 0.7,
