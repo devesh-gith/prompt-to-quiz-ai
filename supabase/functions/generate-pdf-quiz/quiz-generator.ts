@@ -1,5 +1,7 @@
 
 export async function generateQuizFromText(extractedText: string, questionCount: number, openAIApiKey: string) {
+  console.log('Generating quiz from extracted text...');
+  
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -7,55 +9,62 @@ export async function generateQuizFromText(extractedText: string, questionCount:
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: `You are a quiz generator that creates questions ONLY from the provided document content. 
+          content: `You are an expert quiz generator. Create comprehensive quiz questions based EXCLUSIVELY on the provided document content.
 
-STRICT REQUIREMENTS:
-1. Questions MUST be based EXCLUSIVELY on the actual content provided
-2. Do NOT create generic or general knowledge questions
-3. Focus on specific information, facts, concepts, and details from the document
-4. Questions should test comprehension of THIS specific document
-5. Each question must reference specific content that appears in the text
-6. If the text seems fragmented or unclear, create questions about whatever coherent information is available
+CRITICAL REQUIREMENTS:
+1. Questions MUST be based ONLY on information explicitly stated in the document
+2. DO NOT create general knowledge questions or add external information
+3. Each question must test understanding of specific content from the document
+4. Questions should cover different sections/topics from the document
+5. Ensure questions are answerable only by someone who has read this specific document
+6. Focus on key facts, concepts, definitions, and important details mentioned in the text
+7. Make questions challenging but fair - they should test comprehension of the material
 
-Return a JSON object with a "questions" array. Each question needs:
-- "question": Question about specific document content
-- "options": Array of 4 answer choices
-- "correct": Index (0-3) of correct answer  
-- "explanation": Brief explanation with reference to the document
+QUESTION TYPES TO INCLUDE:
+- Factual questions about specific information mentioned
+- Conceptual questions about ideas explained in the document
+- Detail questions about processes, numbers, or specifications mentioned
+- Relationship questions about how concepts connect in the document
 
-Do not use markdown formatting.`
+Return a JSON object with a "questions" array. Each question must have:
+- "question": A clear question about specific document content
+- "options": Array of 4 plausible answer choices (only one correct)
+- "correct": Index (0-3) of the correct answer
+- "explanation": Brief explanation referencing the document content
+
+Do not use markdown formatting in your response.`
         },
         {
           role: 'user',
-          content: `Create ${questionCount} quiz questions based on the specific content from this document. Focus on actual information, facts, and concepts that appear in the text:
+          content: `Based on the following document content, create ${questionCount} quiz questions that test understanding of the specific information provided. Make sure each question can only be answered by reading this document:
 
-DOCUMENT TEXT:
-${extractedText.substring(0, 6000)}
+DOCUMENT CONTENT:
+${extractedText}
 
-Generate questions that can only be answered by reading this specific document content.`
+Generate questions that focus on the key information, facts, and concepts discussed in this document.`
         }
       ],
-      temperature: 0.1,
-      max_tokens: 2000,
+      temperature: 0.2,
+      max_tokens: 3000,
     }),
   });
 
   if (!response.ok) {
     const errorData = await response.json();
-    console.error('OpenAI API error:', errorData);
-    throw new Error(`OpenAI API error: ${response.status}`);
+    console.error('OpenAI quiz generation error:', errorData);
+    throw new Error(`Quiz generation failed: ${response.status}`);
   }
 
   const data = await response.json();
   let content = data.choices[0].message.content.trim();
   
-  console.log('OpenAI response received');
+  console.log('Quiz generation response received');
   
-  // Clean response
+  // Clean response format
   if (content.startsWith('```json')) {
     content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
   } else if (content.startsWith('```')) {
@@ -66,9 +75,10 @@ Generate questions that can only be answered by reading this specific document c
     const quiz = JSON.parse(content);
     
     if (!quiz.questions || !Array.isArray(quiz.questions)) {
-      throw new Error('Invalid quiz format');
+      throw new Error('Invalid quiz format - missing questions array');
     }
     
+    // Validate each question
     const validQuestions = quiz.questions.filter(q => 
       q.question && 
       Array.isArray(q.options) && 
@@ -76,20 +86,21 @@ Generate questions that can only be answered by reading this specific document c
       typeof q.correct === 'number' && 
       q.correct >= 0 && 
       q.correct <= 3 &&
-      q.explanation
+      q.explanation &&
+      q.options.every(option => typeof option === 'string' && option.length > 0)
     );
     
     if (validQuestions.length === 0) {
-      throw new Error('No valid questions generated');
+      throw new Error('No valid questions could be generated from the document content');
     }
     
-    console.log(`Successfully generated ${validQuestions.length} questions`);
+    console.log(`Successfully generated ${validQuestions.length} valid questions`);
     console.log('Sample question:', validQuestions[0].question);
     
     return { questions: validQuestions };
   } catch (parseError) {
     console.error('Failed to parse quiz response:', parseError);
-    console.log('Raw response:', content.substring(0, 500));
-    throw new Error('Failed to generate valid quiz format. Please try again.');
+    console.log('Raw response sample:', content.substring(0, 500));
+    throw new Error('Failed to generate properly formatted quiz. Please try again.');
   }
 }

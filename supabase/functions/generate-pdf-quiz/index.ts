@@ -24,10 +24,10 @@ serve(async (req) => {
       return createErrorResponse('OpenAI API key not configured', 500);
     }
 
-    console.log('Processing PDF data for quiz generation...');
+    console.log('Processing PDF for quiz generation with OpenAI...');
 
-    // Extract text from PDF
-    const extractedText = extractTextFromPDF(pdfData);
+    // Extract text from PDF using OpenAI
+    const extractedText = await extractTextFromPDF(pdfData, openAIApiKey);
     
     // Validate extracted text
     const validation = validateExtractedText(extractedText);
@@ -38,10 +38,14 @@ serve(async (req) => {
     // Generate quiz from extracted text
     const quizData = await generateQuizFromText(extractedText, questionCount, openAIApiKey);
     
+    console.log('Quiz generation completed successfully');
     return createSuccessResponse(quizData);
 
   } catch (error) {
     console.error('Error in generate-pdf-quiz function:', error);
-    return createErrorResponse(error.message);
+    return createErrorResponse(
+      error.message || 'Failed to generate quiz from PDF. Please try again.',
+      500
+    );
   }
 });
