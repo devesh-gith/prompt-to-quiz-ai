@@ -9,6 +9,54 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple PDF text extraction function
+function extractTextFromPDF(pdfData: string): string {
+  try {
+    // Decode base64 PDF data
+    const binaryString = atob(pdfData);
+    const uint8Array = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      uint8Array[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Convert to string and extract text using basic PDF parsing
+    const pdfString = new TextDecoder().decode(uint8Array);
+    
+    // Extract text between stream objects (basic PDF text extraction)
+    const textMatches = pdfString.match(/BT\s*(.*?)\s*ET/gs) || [];
+    let extractedText = '';
+    
+    for (const match of textMatches) {
+      // Extract text from PDF text objects
+      const textLines = match.match(/\((.*?)\)/g) || [];
+      for (const line of textLines) {
+        const text = line.slice(1, -1); // Remove parentheses
+        extractedText += text + ' ';
+      }
+    }
+    
+    // Also try to extract text from Tj commands
+    const tjMatches = pdfString.match(/\((.*?)\)\s*Tj/g) || [];
+    for (const match of tjMatches) {
+      const text = match.replace(/\((.*?)\)\s*Tj/, '$1');
+      extractedText += text + ' ';
+    }
+    
+    // Clean up the extracted text
+    extractedText = extractedText
+      .replace(/\\n/g, ' ')
+      .replace(/\\r/g, ' ')
+      .replace(/\\t/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    return extractedText;
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    return '';
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,49 +81,15 @@ serve(async (req) => {
 
     console.log('Processing PDF data for quiz generation...');
 
-    // Use OpenAI's vision model to extract text and understand the PDF content
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a quiz generator that analyzes PDF documents. Extract the key information from the provided PDF and create exactly ${questionCount} multiple choice questions based on the content. Return ONLY a valid JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation". Do not wrap the JSON in markdown code blocks.`
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Please analyze this PDF document and generate ${questionCount} quiz questions based on its content. Focus on the main concepts, facts, and important information presented in the document.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfData}`
-                }
-              }
-            ]
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
+    // Extract text from PDF
+    const extractedText = extractTextFromPDF(pdfData);
+    console.log('Extracted text length:', extractedText.length);
+    
+    if (!extractedText || extractedText.length < 100) {
+      console.log('Could not extract meaningful text from PDF, using fallback approach...');
       
-      // If the vision model fails, try text-based approach
-      console.log('Vision model failed, trying text extraction approach...');
-      
-      const textResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Fallback: Generate educational questions based on common academic topics
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openAIApiKey}`,
@@ -86,23 +100,24 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are a quiz generator. Since I cannot directly read the PDF content, I'll provide you with a base64 encoded PDF. Please generate ${questionCount} educational multiple choice questions that would typically be found in academic or professional documents. Return ONLY a valid JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation". Do not wrap the JSON in markdown code blocks.`
+              content: `You are a quiz generator. Since the PDF text extraction was not successful, generate ${questionCount} educational multiple choice questions covering general academic topics like science, history, literature, mathematics, or general knowledge. Return ONLY a valid JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation". Do not wrap the JSON in markdown code blocks.`
             },
             {
               role: 'user',
-              content: `Generate ${questionCount} general educational quiz questions since I cannot process the PDF content directly. Make them diverse and educational covering topics like science, history, literature, or general knowledge.`
+              content: `Generate ${questionCount} diverse educational quiz questions since PDF text extraction failed.`
             }
           ],
           temperature: 0.7,
+          max_tokens: 2000,
         }),
       });
 
-      if (!textResponse.ok) {
-        throw new Error(`Failed to generate quiz: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Failed to generate fallback quiz: ${response.status}`);
       }
 
-      const textData = await textResponse.json();
-      let content = textData.choices[0].message.content.trim();
+      const data = await response.json();
+      let content = data.choices[0].message.content.trim();
       
       // Remove markdown code blocks if present
       if (content.startsWith('```json')) {
@@ -137,6 +152,36 @@ serve(async (req) => {
       });
     }
 
+    // Use extracted text to generate quiz
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a quiz generator that creates questions based on document content. Create exactly ${questionCount} multiple choice questions based on the provided text content. Focus on the main concepts, facts, and important information presented in the document. Return ONLY a valid JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation". Do not wrap the JSON in markdown code blocks.`
+          },
+          {
+            role: 'user',
+            content: `Please analyze this text content and generate ${questionCount} quiz questions based on its content:\n\n${extractedText.substring(0, 8000)}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`Failed to generate quiz: ${response.status}`);
+    }
+
     const data = await response.json();
     let content = data.choices[0].message.content.trim();
     
@@ -169,6 +214,8 @@ serve(async (req) => {
       if (validQuestions.length === 0) {
         throw new Error('No valid questions generated');
       }
+      
+      console.log(`Successfully generated ${validQuestions.length} questions from PDF content`);
       
       return new Response(JSON.stringify({ questions: validQuestions }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
