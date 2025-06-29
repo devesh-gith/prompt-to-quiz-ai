@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { FileText, Upload, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
-import { QuizDisplay } from '@/components/QuizDisplay'
+import QuizDisplay from '@/components/QuizDisplay'
 
 const PDFQuiz = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -126,7 +126,7 @@ const PDFQuiz = () => {
             </Button>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} />
+        <QuizDisplay quiz={quiz} onRestart={resetQuiz} />
       </div>
     )
   }
