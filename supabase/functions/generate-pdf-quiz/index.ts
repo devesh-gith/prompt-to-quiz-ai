@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Completely rewritten PDF text extraction with multiple strategies
+// Improved PDF text extraction focused on readable content
 function extractTextFromPDF(pdfData: string): string {
   try {
     // Decode base64 PDF data
@@ -24,24 +24,10 @@ function extractTextFromPDF(pdfData: string): string {
     
     let extractedText = '';
     
-    // Strategy 1: Look for stream objects containing text
-    const streamMatches = pdfString.match(/stream\s*(.*?)\s*endstream/gs) || [];
-    for (const stream of streamMatches) {
-      const streamContent = stream.replace(/^stream\s*/, '').replace(/\s*endstream$/, '');
-      
-      // Try to find readable text patterns in streams
-      const readableText = streamContent.match(/[A-Za-z][A-Za-z\s]{3,}/g) || [];
-      for (const text of readableText) {
-        if (text.length > 3 && !/^[A-Z]{4,}$/.test(text)) { // Skip all-caps abbreviations
-          extractedText += text + ' ';
-        }
-      }
-    }
-    
-    // Strategy 2: Look for text in parentheses with better filtering
-    const parenthesesMatches = pdfString.match(/\(([^)]{4,})\)/g) || [];
+    // Strategy 1: Extract text from parentheses with strict filtering
+    const parenthesesMatches = pdfString.match(/\(([^)]+)\)/g) || [];
     for (const match of parenthesesMatches) {
-      const text = match.slice(1, -1)
+      let text = match.slice(1, -1)
         .replace(/\\n/g, ' ')
         .replace(/\\r/g, ' ')
         .replace(/\\t/g, ' ')
@@ -50,72 +36,79 @@ function extractTextFromPDF(pdfData: string): string {
         .replace(/\\\\/g, '\\')
         .trim();
       
-      // Only include text that looks like real content
-      if (text.length > 3 && 
-          /[a-z]/.test(text) && // Contains lowercase letters
-          !/^[^a-zA-Z]*$/.test(text) && // Not just symbols
-          text.split(' ').length > 1) { // Multiple words
+      // Only include text that contains actual words (not just random characters)
+      if (text.length > 5 && 
+          /[a-zA-Z]{3,}/.test(text) && // Contains words of 3+ letters
+          text.split(/\s+/).length > 1 && // Multiple words
+          !/^[A-Z0-9\s]{10,}$/.test(text) && // Not all caps/numbers
+          !text.includes('obj') && 
+          !text.includes('endobj') &&
+          !/^[^a-zA-Z]*$/.test(text)) { // Contains letters
         extractedText += text + ' ';
       }
     }
     
-    // Strategy 3: Look for text after font/size commands
-    const fontTextMatches = pdfString.match(/\/F\d+\s+\d+\s+Tf[^(]*\(([^)]+)\)/g) || [];
-    for (const match of fontTextMatches) {
-      const text = match.match(/\(([^)]+)\)$/);
-      if (text && text[1]) {
-        const cleanText = text[1]
-          .replace(/\\n/g, ' ')
-          .replace(/\\r/g, ' ')
-          .replace(/\\t/g, ' ')
-          .trim();
-        
-        if (cleanText.length > 3 && /[a-z]/.test(cleanText)) {
-          extractedText += cleanText + ' ';
+    // Strategy 2: Look for text after BT (Begin Text) commands
+    const btMatches = pdfString.match(/BT[^E]*?ET/g) || [];
+    for (const block of btMatches) {
+      const textMatches = block.match(/\(([^)]+)\)/g) || [];
+      for (const match of textMatches) {
+        let text = match.slice(1, -1).trim();
+        if (text.length > 3 && /[a-zA-Z]/.test(text) && !/^[A-Z0-9\s]+$/.test(text)) {
+          extractedText += text + ' ';
         }
       }
     }
     
-    // Strategy 4: Look for text between TD and Tj commands
-    const tdTjMatches = pdfString.match(/TD[^T]*\(([^)]+)\)\s*Tj/g) || [];
-    for (const match of tdTjMatches) {
-      const text = match.match(/\(([^)]+)\)/);
-      if (text && text[1]) {
-        const cleanText = text[1].trim();
-        if (cleanText.length > 3 && /[a-z]/.test(cleanText)) {
-          extractedText += cleanText + ' ';
-        }
+    // Strategy 3: Look for text in show text operators (Tj, TJ)
+    const showTextMatches = pdfString.match(/\(([^)]+)\)\s*T[jJ]/g) || [];
+    for (const match of showTextMatches) {
+      let text = match.replace(/\)\s*T[jJ]$/, '').slice(1).trim();
+      if (text.length > 3 && /[a-zA-Z]{2,}/.test(text)) {
+        extractedText += text + ' ';
       }
     }
     
-    // Strategy 5: Direct search for readable sentences
-    const sentenceMatches = pdfString.match(/[A-Z][a-z]+[^.!?]*[.!?]/g) || [];
-    for (const sentence of sentenceMatches) {
-      if (sentence.length > 10 && sentence.split(' ').length > 2) {
-        extractedText += sentence + ' ';
-      }
-    }
-    
-    // Strategy 6: Look for words separated by spaces
-    const wordMatches = pdfString.match(/[A-Za-z]{3,}(?:\s+[A-Za-z]{3,}){2,}/g) || [];
-    for (const phrase of wordMatches) {
-      if (phrase.length > 10 && !phrase.includes('obj') && !phrase.includes('endobj')) {
-        extractedText += phrase + ' ';
+    // Strategy 4: Extract text from array format [(text)]
+    const arrayTextMatches = pdfString.match(/\[\s*\(([^)]+)\)\s*\]/g) || [];
+    for (const match of arrayTextMatches) {
+      let text = match.match(/\(([^)]+)\)/)?.[1]?.trim();
+      if (text && text.length > 3 && /[a-zA-Z]/.test(text)) {
+        extractedText += text + ' ';
       }
     }
     
     // Clean up the extracted text
     extractedText = extractedText
       .replace(/\s+/g, ' ') // Multiple spaces to single space
-      .replace(/([.!?])\s*([A-Z])/g, '$1 $2') // Proper sentence spacing
-      .replace(/\b[A-Z]{5,}\b/g, '') // Remove long sequences of capitals (likely formatting)
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space between camelCase
+      .replace(/\b[A-Z]{5,}\b/g, '') // Remove long sequences of capitals
       .replace(/\b\d+\s*\d+\s*\d+\b/g, '') // Remove number sequences
-      .replace(/[^\w\s.,!?;:()\-'"]/g, ' ') // Remove special characters except common punctuation
+      .replace(/[^\w\s.,!?;:()\-'"]/g, ' ') // Remove special characters
       .replace(/\s+/g, ' ') // Clean up spaces again
       .trim();
     
-    console.log('Extracted text length:', extractedText.length);
-    console.log('Extracted text sample:', extractedText.substring(0, 500));
+    // Remove common PDF artifacts
+    const artifactPatterns = [
+      /\b[A-Z]{2}\d+\b/g, // Font references like "F1", "TT2"
+      /\b\d+\s+\d+\s+obj\b/g, // Object references
+      /\bstream\b/g,
+      /\bendstream\b/g,
+      /\bxref\b/g,
+      /\btrailer\b/g,
+      /\bstartxref\b/g,
+      /\b%%EOF\b/g,
+    ];
+    
+    for (const pattern of artifactPatterns) {
+      extractedText = extractedText.replace(pattern, ' ');
+    }
+    
+    extractedText = extractedText.replace(/\s+/g, ' ').trim();
+    
+    console.log('Final extracted text length:', extractedText.length);
+    console.log('Extracted text sample (first 500 chars):', extractedText.substring(0, 500));
+    console.log('Word count:', extractedText.split(/\s+/).filter(word => word.length > 2).length);
     
     return extractedText;
   } catch (error) {
@@ -150,36 +143,41 @@ serve(async (req) => {
 
     // Extract text from PDF
     const extractedText = extractTextFromPDF(pdfData);
-    console.log('Final extracted text length:', extractedText.length);
     
-    if (!extractedText || extractedText.length < 100) {
+    if (!extractedText || extractedText.length < 50) {
       console.log('Insufficient text extracted. Length:', extractedText.length);
       console.log('Sample extracted text:', extractedText);
       
       return new Response(
         JSON.stringify({ 
-          error: 'Could not extract meaningful text from the PDF. This may be a scanned document or have a complex format. Please try a different PDF with selectable text content.' 
+          error: 'Could not extract readable text from the PDF. This may be a scanned document, image-based PDF, or have a complex format. Please try a PDF with selectable text content.' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify the text contains actual words, not just random characters
-    const wordCount = extractedText.split(/\s+/).filter(word => 
-      word.length > 2 && /^[A-Za-z]/.test(word)
-    ).length;
+    // Verify the text contains meaningful words, not just random characters
+    const meaningfulWords = extractedText.split(/\s+/).filter(word => 
+      word.length > 2 && 
+      /^[A-Za-z]/.test(word) && 
+      !/^[A-Z]{3,}$/.test(word) && // Not all caps abbreviations
+      word.toLowerCase() !== word.toUpperCase() // Has mixed case or lowercase
+    );
     
-    if (wordCount < 20) {
-      console.log('Text does not contain enough readable words. Word count:', wordCount);
-      console.log('Sample text:', extractedText.substring(0, 200));
+    if (meaningfulWords.length < 10) {
+      console.log('Text does not contain enough meaningful words. Meaningful word count:', meaningfulWords.length);
+      console.log('Sample meaningful words:', meaningfulWords.slice(0, 10));
       
       return new Response(
         JSON.stringify({ 
-          error: 'The PDF appears to contain mostly formatting or non-readable content. Please upload a PDF with clear text content.' 
+          error: 'The PDF appears to contain mostly formatting codes or non-readable content. Please upload a PDF with clear, readable text content.' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Meaningful words found:', meaningfulWords.length);
+    console.log('Sample words:', meaningfulWords.slice(0, 20).join(', '));
 
     // Use extracted text to generate quiz
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -193,50 +191,51 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert quiz generator. You must create ${questionCount} multiple choice questions based EXCLUSIVELY on the content provided from a PDF document.
+            content: `You are a quiz generator that creates questions ONLY from the provided document content. 
 
-CRITICAL REQUIREMENTS:
-1. Questions MUST be based ONLY on information explicitly stated in the provided text
+STRICT REQUIREMENTS:
+1. Questions MUST be based EXCLUSIVELY on the actual content provided
 2. Do NOT create generic or general knowledge questions
-3. Focus on specific facts, concepts, names, dates, and details mentioned in the document
-4. Each question should test comprehension of the actual document content
-5. Make questions that can ONLY be answered by someone who has read this specific document
+3. Focus on specific information, facts, concepts, and details from the document
+4. Questions should test comprehension of THIS specific document
+5. Each question must reference specific content that appears in the text
+6. If the text seems fragmented or unclear, create questions about whatever coherent information is available
 
-Return ONLY a valid JSON object with a "questions" array. Each question must have:
-- "question": The question text (specific to the document)
-- "options": Array of exactly 4 answer choices
-- "correct": Index (0-3) of the correct answer
-- "explanation": Brief explanation referencing the source material
+Return a JSON object with a "questions" array. Each question needs:
+- "question": Question about specific document content
+- "options": Array of 4 answer choices
+- "correct": Index (0-3) of correct answer  
+- "explanation": Brief explanation with reference to the document
 
-Do not wrap the JSON in markdown code blocks.`
+Do not use markdown formatting.`
           },
           {
             role: 'user',
-            content: `Create ${questionCount} quiz questions based on this specific document content. The questions should test understanding of the specific information contained in this text and should NOT be answerable without reading this document:
+            content: `Create ${questionCount} quiz questions based on the specific content from this document. Focus on actual information, facts, and concepts that appear in the text:
 
-DOCUMENT CONTENT:
-${extractedText.substring(0, 8000)}
+DOCUMENT TEXT:
+${extractedText.substring(0, 6000)}
 
-Generate questions about specific details, facts, concepts, or information that appears in this document content.`
+Generate questions that can only be answered by reading this specific document content.`
           }
         ],
-        temperature: 0.2,
-        max_tokens: 2500,
+        temperature: 0.1,
+        max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
       console.error('OpenAI API error:', errorData);
-      throw new Error(`Failed to generate quiz: ${response.status}`);
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
     let content = data.choices[0].message.content.trim();
     
-    console.log('OpenAI response received, length:', content.length);
+    console.log('OpenAI response received');
     
-    // Remove markdown code blocks if present
+    // Clean response
     if (content.startsWith('```json')) {
       content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
     } else if (content.startsWith('```')) {
@@ -246,12 +245,10 @@ Generate questions about specific details, facts, concepts, or information that 
     try {
       const quiz = JSON.parse(content);
       
-      // Validate quiz structure
       if (!quiz.questions || !Array.isArray(quiz.questions)) {
-        throw new Error('Invalid quiz format: missing questions array');
+        throw new Error('Invalid quiz format');
       }
       
-      // Validate each question
       const validQuestions = quiz.questions.filter(q => 
         q.question && 
         Array.isArray(q.options) && 
@@ -266,17 +263,17 @@ Generate questions about specific details, facts, concepts, or information that 
         throw new Error('No valid questions generated');
       }
       
-      console.log(`Successfully generated ${validQuestions.length} questions from PDF content`);
+      console.log(`Successfully generated ${validQuestions.length} questions`);
       console.log('Sample question:', validQuestions[0].question);
       
       return new Response(JSON.stringify({ questions: validQuestions }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', parseError);
-      console.log('Raw OpenAI response:', content.substring(0, 500));
+      console.error('Failed to parse quiz response:', parseError);
+      console.log('Raw response:', content.substring(0, 500));
       return new Response(
-        JSON.stringify({ error: 'Failed to generate valid quiz format. Please try again with a different PDF.' }),
+        JSON.stringify({ error: 'Failed to generate valid quiz format. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
