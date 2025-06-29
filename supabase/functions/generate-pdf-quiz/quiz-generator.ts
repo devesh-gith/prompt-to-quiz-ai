@@ -9,7 +9,7 @@ export async function generateQuizFromText(extractedText: string, questionCount:
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -36,7 +36,7 @@ Return a JSON object with a "questions" array. Each question must have:
 - "correct": Index (0-3) of the correct answer
 - "explanation": Brief explanation referencing the document content
 
-Do not use markdown formatting in your response.`
+Do not use markdown formatting in your response. Return only valid JSON.`
         },
         {
           role: 'user',
@@ -45,7 +45,7 @@ Do not use markdown formatting in your response.`
 DOCUMENT CONTENT:
 ${extractedText}
 
-Generate questions that focus on the key information, facts, and concepts discussed in this document.`
+Generate questions that focus on the key information, facts, and concepts discussed in this document. Return only the JSON object with the questions array.`
         }
       ],
       temperature: 0.2,
