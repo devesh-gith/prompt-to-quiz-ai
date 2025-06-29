@@ -35,7 +35,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the provided text. Format your response as a JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation".`
+            content: `You are a quiz generator. Create exactly ${questionCount} multiple choice questions based on the provided text. Return ONLY a valid JSON object with a "questions" array. Each question should have: "question", "options" (array of 4 choices), "correct" (index of correct answer 0-3), and "explanation". Do not wrap the JSON in markdown code blocks.`
           },
           {
             role: 'user',
@@ -51,11 +51,39 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    let content = data.choices[0].message.content.trim();
+    
+    // Remove markdown code blocks if present
+    if (content.startsWith('```json')) {
+      content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (content.startsWith('```')) {
+      content = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
     
     try {
       const quiz = JSON.parse(content);
-      return new Response(JSON.stringify(quiz), {
+      
+      // Validate quiz structure
+      if (!quiz.questions || !Array.isArray(quiz.questions)) {
+        throw new Error('Invalid quiz format: missing questions array');
+      }
+      
+      // Validate each question
+      const validQuestions = quiz.questions.filter(q => 
+        q.question && 
+        Array.isArray(q.options) && 
+        q.options.length === 4 && 
+        typeof q.correct === 'number' && 
+        q.correct >= 0 && 
+        q.correct <= 3 &&
+        q.explanation
+      );
+      
+      if (validQuestions.length === 0) {
+        throw new Error('No valid questions generated');
+      }
+      
+      return new Response(JSON.stringify({ questions: validQuestions }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (parseError) {
