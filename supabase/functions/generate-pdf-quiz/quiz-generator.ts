@@ -1,7 +1,70 @@
 
 export async function generateQuizFromText(extractedText: string, questionCount: number, openAIApiKey: string) {
   console.log('Generating quiz from extracted text...');
+  console.log('Original text length:', extractedText.length);
   
+  // Chunk the text if it's too long to avoid token limits
+  const maxTextLength = 8000; // Conservative limit to stay well under token limits
+  let processedText = extractedText;
+  
+  if (extractedText.length > maxTextLength) {
+    console.log('Text too long, chunking and summarizing...');
+    
+    // Split into chunks and get key content from each
+    const chunkSize = 3000;
+    const chunks = [];
+    
+    for (let i = 0; i < extractedText.length; i += chunkSize) {
+      chunks.push(extractedText.slice(i, i + chunkSize));
+    }
+    
+    console.log(`Split into ${chunks.length} chunks`);
+    
+    // Process chunks to extract key information
+    const keyPoints = [];
+    
+    for (let i = 0; i < Math.min(chunks.length, 3); i++) { // Limit to first 3 chunks
+      const chunk = chunks[i];
+      
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'Extract the key facts, concepts, and important information from this text that would be suitable for quiz questions. Focus on specific details, definitions, processes, and factual content.'
+              },
+              {
+                role: 'user',
+                content: `Extract key information from this text for quiz generation: ${chunk}`
+              }
+            ],
+            max_tokens: 800,
+            temperature: 0.1
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const keyInfo = data.choices[0].message.content.trim();
+          keyPoints.push(keyInfo);
+        }
+      } catch (e) {
+        console.log(`Failed to process chunk ${i + 1}:`, e.message);
+      }
+    }
+    
+    processedText = keyPoints.join('\n\n');
+    console.log('Processed text length:', processedText.length);
+  }
+  
+  // Generate quiz from processed text
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -22,7 +85,6 @@ CRITICAL REQUIREMENTS:
 4. Questions should cover different sections/topics from the document
 5. Ensure questions are answerable only by someone who has read this specific document
 6. Focus on key facts, concepts, definitions, and important details mentioned in the text
-7. Make questions challenging but fair - they should test comprehension of the material
 
 QUESTION TYPES TO INCLUDE:
 - Factual questions about specific information mentioned
@@ -43,20 +105,20 @@ Do not use markdown formatting in your response. Return only valid JSON.`
           content: `Based on the following document content, create ${questionCount} quiz questions that test understanding of the specific information provided. Make sure each question can only be answered by reading this document:
 
 DOCUMENT CONTENT:
-${extractedText}
+${processedText}
 
 Generate questions that focus on the key information, facts, and concepts discussed in this document. Return only the JSON object with the questions array.`
         }
       ],
       temperature: 0.2,
-      max_tokens: 3000,
+      max_tokens: 2500,
     }),
   });
 
   if (!response.ok) {
     const errorData = await response.json();
     console.error('OpenAI quiz generation error:', errorData);
-    throw new Error(`Quiz generation failed: ${response.status}`);
+    throw new Error(`Quiz generation failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
   }
 
   const data = await response.json();
@@ -95,7 +157,7 @@ Generate questions that focus on the key information, facts, and concepts discus
     }
     
     console.log(`Successfully generated ${validQuestions.length} valid questions`);
-    console.log('Sample question:', validQuestions[0].question);
+    console.log('Sample question:', validQuestions[0]?.question);
     
     return { questions: validQuestions };
   } catch (parseError) {

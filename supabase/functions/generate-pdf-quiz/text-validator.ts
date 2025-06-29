@@ -1,6 +1,6 @@
 
 export function validateExtractedText(extractedText: string): { isValid: boolean; error?: string } {
-  if (!extractedText || extractedText.length < 100) {
+  if (!extractedText || extractedText.length < 50) {
     console.log('Insufficient text extracted. Length:', extractedText.length);
     console.log('Sample extracted text:', extractedText);
     
@@ -10,11 +10,13 @@ export function validateExtractedText(extractedText: string): { isValid: boolean
     };
   }
 
-  // Check for meaningful sentences and content
-  const sentences = extractedText.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  // Check for meaningful content - look for readable words
+  const words = extractedText.match(/\b[a-zA-Z]{3,}\b/g);
+  const wordCount = words ? words.length : 0;
   
-  if (sentences.length < 3) {
-    console.log('Text does not contain enough meaningful sentences. Sentence count:', sentences.length);
+  if (wordCount < 20) {
+    console.log('Text does not contain enough meaningful words. Word count:', wordCount);
+    console.log('Sample text:', extractedText.substring(0, 200));
     
     return {
       isValid: false,
@@ -22,21 +24,23 @@ export function validateExtractedText(extractedText: string): { isValid: boolean
     };
   }
 
-  // Check for reasonable word count
-  const words = extractedText.split(/\s+/).filter(word => word.length > 2);
+  // Check for readable character ratio
+  const readableChars = extractedText.match(/[a-zA-Z0-9\s.,!?;:'"()-]/g);
+  const readableRatio = readableChars ? readableChars.length / extractedText.length : 0;
   
-  if (words.length < 50) {
-    console.log('Text does not contain enough words. Word count:', words.length);
+  if (readableRatio < 0.5) {
+    console.log('Text contains too many non-readable characters. Readable ratio:', readableRatio);
     
     return {
       isValid: false,
-      error: 'The PDF content is too brief to generate meaningful questions. Please upload a PDF with more comprehensive content.'
+      error: 'The PDF appears to contain mostly non-text content or corrupted data. Please ensure you upload a text-based PDF document.'
     };
   }
 
   console.log('Text validation successful');
-  console.log('Sentence count:', sentences.length);
-  console.log('Word count:', words.length);
+  console.log('Word count:', wordCount);
+  console.log('Readable ratio:', readableRatio);
+  console.log('Text length:', extractedText.length);
 
   return {
     isValid: true
