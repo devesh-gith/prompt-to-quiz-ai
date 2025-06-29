@@ -14,6 +14,7 @@ import PDFQuiz from "./pages/PDFQuiz";
 import TextQuiz from "./pages/TextQuiz";
 import PromptQuiz from "./pages/PromptQuiz";
 import ApiKeys from "./pages/ApiKeys";
+import AccountSettings from "./pages/AccountSettings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +50,7 @@ const App = () => {
                 <Route path="text-quiz" element={<TextQuiz />} />
                 <Route path="prompt-quiz" element={<PromptQuiz />} />
                 <Route path="api-keys" element={<ApiKeys />} />
+                <Route path="account-settings" element={<AccountSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

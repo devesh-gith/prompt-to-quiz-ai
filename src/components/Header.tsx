@@ -3,9 +3,11 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const navigate = useNavigate()
 
   const navigation = [
     { name: 'Features', href: '#features' },
@@ -55,10 +57,17 @@ const Header = () => {
             transition={{ duration: 0.6 }}
             className="hidden md:flex items-center space-x-4"
           >
-            <Button variant="ghost" className="text-black hover:text-gray-700">
+            <Button 
+              variant="ghost" 
+              className="text-black hover:text-gray-700"
+              onClick={() => navigate('/auth')}
+            >
               Sign In
             </Button>
-            <Button className="bg-black hover:bg-gray-800 text-white rounded-full px-6">
+            <Button 
+              className="bg-black hover:bg-gray-800 text-white rounded-full px-6"
+              onClick={() => navigate('/auth')}
+            >
               Start Free Trial
             </Button>
           </motion.div>
@@ -98,10 +107,23 @@ const Header = () => {
                   </a>
                 ))}
                 <div className="px-4 pt-4 border-t border-gray-200 space-y-2">
-                  <Button variant="ghost" className="w-full justify-start text-black">
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-black"
+                    onClick={() => {
+                      navigate('/auth')
+                      setIsMenuOpen(false)
+                    }}
+                  >
                     Sign In
                   </Button>
-                  <Button className="w-full bg-black hover:bg-gray-800 text-white">
+                  <Button 
+                    className="w-full bg-black hover:bg-gray-800 text-white"
+                    onClick={() => {
+                      navigate('/auth')
+                      setIsMenuOpen(false)
+                    }}
+                  >
                     Start Free Trial
                   </Button>
                 </div>

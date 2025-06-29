@@ -1,5 +1,7 @@
+
 import { NavLink, useLocation } from 'react-router-dom'
-import { Image, Youtube, FileText, MessageSquare, Sparkles, Home } from 'lucide-react'
+import { Image, Youtube, FileText, MessageSquare, Sparkles, Home, Settings, User } from 'lucide-react'
+import { UserButton } from '@clerk/clerk-react'
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +22,11 @@ const menuItems = [
   { title: "PDF to Quiz", url: "/dashboard/pdf-quiz", icon: FileText },
   { title: "Text to Quiz", url: "/dashboard/text-quiz", icon: MessageSquare },
   { title: "Prompt to Quiz", url: "/dashboard/prompt-quiz", icon: Sparkles },
+]
+
+const settingsItems = [
+  { title: "Account Settings", url: "/dashboard/account-settings", icon: User },
+  { title: "API Keys", url: "/dashboard/api-keys", icon: Settings },
 ]
 
 export function AppSidebar() {
@@ -77,7 +84,56 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {settingsItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to={item.url}
+                      className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${getNavClass(item.url)}`}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {!collapsed && <span className="font-medium">{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
+
+      {/* User Profile at bottom */}
+      <div className="p-4 border-t border-gray-200 mt-auto">
+        {collapsed ? (
+          <div className="flex justify-center">
+            <UserButton 
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8",
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <div className="flex items-center space-x-3">
+            <UserButton 
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8",
+                }
+              }}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">Account</p>
+            </div>
+          </div>
+        )}
+      </div>
     </Sidebar>
   )
 }

@@ -1,10 +1,31 @@
 
 import { SignIn, SignUp } from '@clerk/clerk-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { useUser } from '@clerk/clerk-react'
+import { useNavigate } from 'react-router-dom'
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false)
+  const { isSignedIn, isLoaded } = useUser()
+  const navigate = useNavigate()
+
+  // Redirect to dashboard if user is already signed in
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      navigate('/dashboard')
+    }
+  }, [isSignedIn, isLoaded, navigate])
+
+  // Don't render anything while checking auth state
+  if (!isLoaded) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  }
+
+  // Don't render auth forms if user is signed in (will redirect)
+  if (isSignedIn) {
+    return <div className="flex items-center justify-center min-h-screen">Redirecting to dashboard...</div>
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -28,6 +49,7 @@ const Auth = () => {
           {isSignUp ? (
             <SignUp 
               fallbackRedirectUrl="/dashboard"
+              forceRedirectUrl="/dashboard"
               appearance={{
                 elements: {
                   rootBox: "w-full",
@@ -38,6 +60,7 @@ const Auth = () => {
           ) : (
             <SignIn 
               fallbackRedirectUrl="/dashboard"
+              forceRedirectUrl="/dashboard"
               appearance={{
                 elements: {
                   rootBox: "w-full",
