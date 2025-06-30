@@ -1,4 +1,5 @@
 
+
 -- Fix RLS policies to work with Clerk JWT tokens
 -- Drop existing policies
 DROP POLICY IF EXISTS "Users can view their own quizzes" ON public.quizzes;
@@ -76,3 +77,4 @@ CREATE POLICY "Users can create their own quiz results"
       auth.jwt() ->> 'user_id'
     ) = user_id
   );
+

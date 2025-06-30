@@ -35,6 +35,8 @@ export const useQuizOperations = () => {
       try {
         const tokenPayload = JSON.parse(atob(clerkToken.split('.')[1]))
         console.log('JWT payload:', tokenPayload)
+        console.log('JWT sub field:', tokenPayload.sub)
+        console.log('JWT user_id field:', tokenPayload.user_id)
       } catch (e) {
         console.error('Failed to parse JWT:', e)
       }
@@ -45,6 +47,11 @@ export const useQuizOperations = () => {
       })
 
       console.log('Attempting to save quiz with user ID:', user.id)
+      console.log('created_by will be set to:', user.id)
+
+      // Test if we can query the current user from the JWT
+      const { data: testData, error: testError } = await supabase.rpc('version')
+      console.log('Test query result:', testData, testError)
 
       const { data, error } = await supabase
         .from('quizzes')
