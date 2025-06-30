@@ -1,0 +1,124 @@
+
+import { useState } from 'react'
+import { useUser, useOrganization } from '@clerk/clerk-react'
+import { supabase } from '@/integrations/supabase/client'
+import { useToast } from '@/hooks/use-toast'
+
+export const useQuizOperations = () => {
+  const { user } = useUser()
+  const { organization } = useOrganization()
+  const { toast } = useToast()
+  const [isSaving, setIsSaving] = useState(false)
+
+  const saveQuiz = async (quizData: any, quizType: string, title: string, description?: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save quizzes",
+        variant: "destructive",
+      })
+      return null
+    }
+
+    setIsSaving(true)
+    try {
+      const { data, error } = await supabase
+        .from('quizzes')
+        .insert({
+          title,
+          description,
+          quiz_type: quizType,
+          quiz_data: quizData,
+          created_by: user.id,
+          organization_id: organization?.id || null,
+          is_shared: false
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Quiz saved successfully!",
+      })
+
+      return data
+    } catch (error) {
+      console.error('Error saving quiz:', error)
+      toast({
+        title: "Error",
+        description: "Failed to save quiz. Please try again.",
+        variant: "destructive",
+      })
+      return null
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const shareQuizWithOrganization = async (quizId: string) => {
+    if (!organization) {
+      toast({
+        title: "Error",
+        description: "You must be in an organization to share quizzes",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    try {
+      const { error } = await supabase
+        .from('quizzes')
+        .update({ 
+          is_shared: true,
+          organization_id: organization.id 
+        })
+        .eq('id', quizId)
+        .eq('created_by', user?.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: `Quiz shared with ${organization.name}!`,
+      })
+
+      return true
+    } catch (error) {
+      console.error('Error sharing quiz:', error)
+      toast({
+        title: "Error",
+        description: "Failed to share quiz. Please try again.",
+        variant: "destructive",
+      })
+      return false
+    }
+  }
+
+  const getSharedQuizzes = async () => {
+    if (!organization) return []
+
+    try {
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('is_shared', true)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error fetching shared quizzes:', error)
+      return []
+    }
+  }
+
+  return {
+    saveQuiz,
+    shareQuizWithOrganization,
+    getSharedQuizzes,
+    isSaving
+  }
+}

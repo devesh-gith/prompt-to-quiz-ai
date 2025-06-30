@@ -8,7 +8,11 @@ import { useState } from 'react'
 
 const Organizations = () => {
   const { user } = useUser()
-  const { userMemberships, isLoaded } = useOrganizationList()
+  const { userMemberships, isLoaded } = useOrganizationList({
+    userMemberships: {
+      infinite: true,
+    }
+  })
   const [showCreateOrg, setShowCreateOrg] = useState(false)
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
 
@@ -42,6 +46,7 @@ const Organizations = () => {
                 }
               }}
               afterCreateOrganizationUrl="/dashboard/organizations"
+              skipInvitationScreen={true}
             />
           </CardContent>
         </Card>
