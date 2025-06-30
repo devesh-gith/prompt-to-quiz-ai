@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { supabase } from '@/integrations/supabase/client'
@@ -48,10 +47,6 @@ export const useQuizOperations = () => {
 
       console.log('Attempting to save quiz with user ID:', user.id)
       console.log('created_by will be set to:', user.id)
-
-      // Test if we can query the current user from the JWT
-      const { data: testData, error: testError } = await supabase.rpc('version')
-      console.log('Test query result:', testData, testError)
 
       const { data, error } = await supabase
         .from('quizzes')
