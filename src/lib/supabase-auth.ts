@@ -1,18 +1,19 @@
 
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { supabase } from '@/integrations/supabase/client'
 
 export const useSupabaseAuth = () => {
   const { user } = useUser()
+  const { getToken } = useAuth()
 
   const setupSupabaseAuth = async () => {
     if (!user) return false
 
     try {
-      const clerkToken = await user.getToken({ template: 'supabase' })
+      const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) return false
 
-      supabase.auth.setSession({
+      await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })

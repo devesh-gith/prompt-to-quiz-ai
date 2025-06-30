@@ -1,11 +1,12 @@
 
 import { useState } from 'react'
-import { useUser, useOrganization } from '@clerk/clerk-react'
+import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 
 export const useQuizOperations = () => {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const { organization } = useOrganization()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -23,12 +24,12 @@ export const useQuizOperations = () => {
     setIsSaving(true)
     try {
       // Set up Supabase auth context with Clerk session
-      const clerkToken = await user.getToken({ template: 'supabase' })
+      const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
       }
 
-      supabase.auth.setSession({
+      await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })
@@ -89,12 +90,12 @@ export const useQuizOperations = () => {
 
     try {
       // Set up Supabase auth context with Clerk session
-      const clerkToken = await user.getToken({ template: 'supabase' })
+      const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
       }
 
-      supabase.auth.setSession({
+      await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })
@@ -132,12 +133,12 @@ export const useQuizOperations = () => {
 
     try {
       // Set up Supabase auth context with Clerk session
-      const clerkToken = await user.getToken({ template: 'supabase' })
+      const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
       }
 
-      supabase.auth.setSession({
+      await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })
