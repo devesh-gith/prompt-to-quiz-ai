@@ -10,6 +10,7 @@ export const useSharedQuizzes = () => {
   const { organization } = useOrganization()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   const saveToSharedQuizzes = async (quizData: any, quizType: string, title: string, description?: string) => {
     if (!user || !organization) {
@@ -33,6 +34,9 @@ export const useSharedQuizzes = () => {
         refresh_token: '',
       })
 
+      console.log('Saving quiz with organization ID:', organization.id)
+      console.log('Quiz data preview:', { title, quizType, questionsCount: quizData?.questions?.length })
+
       const { data, error } = await supabase
         .from('shared_quizzes')
         .insert({
@@ -50,6 +54,8 @@ export const useSharedQuizzes = () => {
         console.error('Supabase error details:', error)
         throw error
       }
+
+      console.log('Quiz saved successfully:', data)
 
       toast({
         title: "Success",
@@ -71,8 +77,12 @@ export const useSharedQuizzes = () => {
   }
 
   const getSharedQuizzes = async () => {
-    if (!organization || !user) return []
+    if (!organization || !user) {
+      console.log('No organization or user found')
+      return []
+    }
 
+    setIsLoading(true)
     try {
       const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
@@ -84,6 +94,8 @@ export const useSharedQuizzes = () => {
         refresh_token: '',
       })
 
+      console.log('Fetching quizzes for organization:', organization.id)
+
       const { data, error } = await supabase
         .from('shared_quizzes')
         .select('*')
@@ -91,17 +103,25 @@ export const useSharedQuizzes = () => {
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching shared quizzes:', error)
+        throw error
+      }
+
+      console.log('Fetched quizzes:', data?.length || 0, 'quizzes')
       return data || []
     } catch (error) {
       console.error('Error fetching shared quizzes:', error)
       return []
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return {
     saveToSharedQuizzes,
     getSharedQuizzes,
-    isSaving
+    isSaving,
+    isLoading
   }
 }

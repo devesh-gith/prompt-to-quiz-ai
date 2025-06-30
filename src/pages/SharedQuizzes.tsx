@@ -2,31 +2,34 @@
 import { useOrganization, useUser } from '@clerk/clerk-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Share2, Play, Calendar, User, Building, FileText, Image, Youtube, MessageSquare, Sparkles, Clock } from 'lucide-react'
+import { Share2, Play, Calendar, Building, FileText, Image, Youtube, MessageSquare, Sparkles, Clock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useSharedQuizzes } from '@/hooks/useSharedQuizzes'
 import { useEffect, useState } from 'react'
+import QuizDisplay from '@/components/QuizDisplay'
 
 const SharedQuizzes = () => {
   const { user } = useUser()
   const { organization } = useOrganization()
-  const { getSharedQuizzes } = useSharedQuizzes()
+  const { getSharedQuizzes, isLoading } = useSharedQuizzes()
   const [quizzes, setQuizzes] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [selectedQuiz, setSelectedQuiz] = useState(null)
 
   useEffect(() => {
     const fetchQuizzes = async () => {
-      setIsLoading(true)
-      const sharedQuizzes = await getSharedQuizzes()
-      setQuizzes(sharedQuizzes)
-      setIsLoading(false)
+      if (organization) {
+        console.log('Fetching quizzes for organization:', organization.name)
+        const sharedQuizzes = await getSharedQuizzes()
+        console.log('Received quizzes:', sharedQuizzes)
+        setQuizzes(sharedQuizzes)
+      }
     }
 
-    if (organization) {
-      fetchQuizzes()
-    } else {
-      setIsLoading(false)
-    }
+    fetchQuizzes()
+    
+    // Refresh every 30 seconds to show new quizzes and remove expired ones
+    const interval = setInterval(fetchQuizzes, 30000)
+    return () => clearInterval(interval)
   }, [organization])
 
   const getQuizIcon = (quizType: string) => {
@@ -77,6 +80,35 @@ const SharedQuizzes = () => {
     return `${hours}h ${mins}m left`
   }
 
+  const handleTakeQuiz = (quiz: any) => {
+    console.log('Taking quiz:', quiz.title)
+    setSelectedQuiz(quiz)
+  }
+
+  const handleBackToList = () => {
+    setSelectedQuiz(null)
+  }
+
+  // If a quiz is selected, show the quiz display component
+  if (selectedQuiz) {
+    return (
+      <div>
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-black mb-2">{selectedQuiz.title}</h1>
+              <p className="text-gray-600">{selectedQuiz.description}</p>
+            </div>
+            <Button onClick={handleBackToList} variant="outline">
+              Back to Quiz Pool
+            </Button>
+          </div>
+        </div>
+        <QuizDisplay quiz={selectedQuiz.quiz_data} onRestart={handleBackToList} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-64">Loading shared quizzes...</div>
   }
@@ -104,6 +136,7 @@ const SharedQuizzes = () => {
             const IconComponent = getQuizIcon(quiz.quiz_type)
             const timeRemaining = getTimeRemaining(quiz.expires_at)
             const isExpiringSoon = timeRemaining.includes('min left') && parseInt(timeRemaining) <= 10
+            const isExpired = timeRemaining === 'Expired'
             
             return (
               <Card key={quiz.id} className="border-gray-200 hover:shadow-lg transition-shadow">
@@ -129,7 +162,7 @@ const SharedQuizzes = () => {
                         {getQuizTypeLabel(quiz.quiz_type)}
                       </Badge>
                       <Badge 
-                        variant={isExpiringSoon ? "destructive" : "outline"}
+                        variant={isExpired ? "destructive" : isExpiringSoon ? "destructive" : "outline"}
                         className="text-xs"
                       >
                         <Clock className="h-3 w-3 mr-1" />
@@ -159,10 +192,11 @@ const SharedQuizzes = () => {
                   <div className="pt-4 border-t border-gray-100">
                     <Button 
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                      disabled={timeRemaining === 'Expired'}
+                      disabled={isExpired}
+                      onClick={() => handleTakeQuiz(quiz)}
                     >
                       <Play className="h-4 w-4 mr-2" />
-                      {timeRemaining === 'Expired' ? 'Quiz Expired' : 'Take Quiz'}
+                      {isExpired ? 'Quiz Expired' : 'Take Quiz'}
                     </Button>
                   </div>
                 </CardContent>
@@ -179,7 +213,7 @@ const SharedQuizzes = () => {
             <h3 className="text-xl font-semibold text-black mb-2">No Active Shared Quizzes</h3>
             <p className="text-gray-600 mb-6">
               {organization 
-                ? `No quizzes have been shared with ${organization.name} recently. Shared quizzes appear here for 1 hour.`
+                ? `No quizzes have been shared with ${organization.name} recently. Create and share a quiz to see it appear here!`
                 : "Join an organization to access shared quizzes from your team."
               }
             </p>
