@@ -1,6 +1,6 @@
 
 import { NavLink, useLocation } from 'react-router-dom'
-import { Image, Youtube, FileText, MessageSquare, Sparkles, Home, Settings, User } from 'lucide-react'
+import { Image, Youtube, FileText, MessageSquare, Sparkles, Home, User, Users, Share2 } from 'lucide-react'
 import { UserButton } from '@clerk/clerk-react'
 import {
   Sidebar,
@@ -24,9 +24,13 @@ const menuItems = [
   { title: "Prompt to Quiz", url: "/dashboard/prompt-quiz", icon: Sparkles },
 ]
 
+const organizationItems = [
+  { title: "My Organizations", url: "/dashboard/organizations", icon: Users },
+  { title: "Shared Quizzes", url: "/dashboard/shared-quizzes", icon: Share2 },
+]
+
 const settingsItems = [
   { title: "Account Settings", url: "/dashboard/account-settings", icon: User },
-  { title: "API Keys", url: "/dashboard/api-keys", icon: Settings },
 ]
 
 export function AppSidebar() {
@@ -73,6 +77,27 @@ export function AppSidebar() {
                     <NavLink 
                       to={item.url} 
                       end={item.url === "/dashboard"}
+                      className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${getNavClass(item.url)}`}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {!collapsed && <span className="font-medium">{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Organizations</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {organizationItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to={item.url}
                       className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${getNavClass(item.url)}`}
                     >
                       <item.icon className="h-5 w-5" />

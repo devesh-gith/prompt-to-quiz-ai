@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +12,8 @@ import YouTubeQuiz from "./pages/YouTubeQuiz";
 import PDFQuiz from "./pages/PDFQuiz";
 import TextQuiz from "./pages/TextQuiz";
 import PromptQuiz from "./pages/PromptQuiz";
-import ApiKeys from "./pages/ApiKeys";
+import Organizations from "./pages/Organizations";
+import SharedQuizzes from "./pages/SharedQuizzes";
 import AccountSettings from "./pages/AccountSettings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -49,7 +49,8 @@ const App = () => {
                 <Route path="pdf-quiz" element={<PDFQuiz />} />
                 <Route path="text-quiz" element={<TextQuiz />} />
                 <Route path="prompt-quiz" element={<PromptQuiz />} />
-                <Route path="api-keys" element={<ApiKeys />} />
+                <Route path="organizations" element={<Organizations />} />
+                <Route path="shared-quizzes" element={<SharedQuizzes />} />
                 <Route path="account-settings" element={<AccountSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
