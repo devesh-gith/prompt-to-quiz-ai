@@ -6,13 +6,12 @@ import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import QuizDisplay from '@/components/QuizDisplay'
-import ShareQuizButton from '@/components/ShareQuizButton'
+import ShareToPoolButton from '@/components/ShareToPoolButton'
 
 const PromptQuiz = () => {
   const [prompt, setPrompt] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [quiz, setQuiz] = useState(null)
-  const [savedQuizId, setSavedQuizId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const handleGenerateQuiz = async () => {
@@ -63,7 +62,6 @@ const PromptQuiz = () => {
   const handleRestart = () => {
     setQuiz(null)
     setPrompt('')
-    setSavedQuizId(null)
   }
 
   if (quiz) {
@@ -73,7 +71,7 @@ const PromptQuiz = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center">
-                <Sparkles className="w-6 w-6 text-white" />
+                <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-black">Prompt to Quiz</h1>
@@ -81,13 +79,11 @@ const PromptQuiz = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <ShareQuizButton
-                quizId={savedQuizId}
+              <ShareToPoolButton
                 quizData={quiz}
                 quizType="prompt"
                 title={`Prompt Quiz - ${prompt.slice(0, 50)}...`}
                 description="Quiz generated from AI prompt"
-                onQuizSaved={setSavedQuizId}
               />
               <Button onClick={handleRestart} variant="outline">
                 Generate New Quiz

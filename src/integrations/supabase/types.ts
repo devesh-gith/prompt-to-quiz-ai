@@ -110,11 +110,51 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_quizzes: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          expires_at: string
+          id: string
+          organization_id: string
+          quiz_data: Json
+          quiz_type: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          expires_at?: string
+          id?: string
+          organization_id: string
+          quiz_data: Json
+          quiz_type: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          expires_at?: string
+          id?: string
+          organization_id?: string
+          quiz_data?: Json
+          quiz_type?: string
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_shared_quizzes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_clerk_user_id: {
         Args: Record<PropertyKey, never>
         Returns: string

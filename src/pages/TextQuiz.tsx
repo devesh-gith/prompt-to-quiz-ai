@@ -6,13 +6,12 @@ import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import QuizDisplay from '@/components/QuizDisplay'
-import ShareQuizButton from '@/components/ShareQuizButton'
+import ShareToPoolButton from '@/components/ShareToPoolButton'
 
 const TextQuiz = () => {
   const [text, setText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [quiz, setQuiz] = useState(null)
-  const [savedQuizId, setSavedQuizId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const handleGenerateQuiz = async () => {
@@ -63,7 +62,6 @@ const TextQuiz = () => {
   const handleRestart = () => {
     setQuiz(null)
     setText('')
-    setSavedQuizId(null)
   }
 
   if (quiz) {
@@ -81,13 +79,11 @@ const TextQuiz = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <ShareQuizButton
-                quizId={savedQuizId}
+              <ShareToPoolButton
                 quizData={quiz}
                 quizType="text"
                 title="Text Quiz"
                 description="Quiz generated from text content"
-                onQuizSaved={setSavedQuizId}
               />
               <Button onClick={handleRestart} variant="outline">
                 Generate New Quiz

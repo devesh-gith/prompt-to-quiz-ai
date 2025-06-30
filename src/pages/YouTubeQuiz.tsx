@@ -6,13 +6,12 @@ import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import QuizDisplay from '@/components/QuizDisplay'
-import ShareQuizButton from '@/components/ShareQuizButton'
+import ShareToPoolButton from '@/components/ShareToPoolButton'
 
 const YouTubeQuiz = () => {
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [quiz, setQuiz] = useState(null)
-  const [savedQuizId, setSavedQuizId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const handleGenerateQuiz = async () => {
@@ -65,7 +64,6 @@ const YouTubeQuiz = () => {
   const handleRestart = () => {
     setQuiz(null)
     setYoutubeUrl('')
-    setSavedQuizId(null)
   }
 
   if (quiz) {
@@ -83,13 +81,11 @@ const YouTubeQuiz = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <ShareQuizButton
-                quizId={savedQuizId}
+              <ShareToPoolButton
                 quizData={quiz}
                 quizType="youtube"
                 title={`YouTube Quiz - ${youtubeUrl}`}
                 description="Quiz generated from YouTube video"
-                onQuizSaved={setSavedQuizId}
               />
               <Button onClick={handleRestart} variant="outline">
                 Generate New Quiz

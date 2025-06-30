@@ -5,14 +5,13 @@ import { useState, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import QuizDisplay from '@/components/QuizDisplay'
-import ShareQuizButton from '@/components/ShareQuizButton'
+import ShareToPoolButton from '@/components/ShareToPoolButton'
 
 const ImageQuiz = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [quiz, setQuiz] = useState(null)
-  const [savedQuizId, setSavedQuizId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
@@ -94,7 +93,6 @@ const ImageQuiz = () => {
       if (error) throw error
 
       setQuiz(data)
-      setSavedQuizId(null) // Reset saved quiz ID for new quiz
       toast({
         title: "Success",
         description: "Quiz generated successfully!",
@@ -115,7 +113,6 @@ const ImageQuiz = () => {
     setQuiz(null)
     setSelectedImage(null)
     setImagePreview(null)
-    setSavedQuizId(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -136,13 +133,11 @@ const ImageQuiz = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <ShareQuizButton
-                quizId={savedQuizId}
+              <ShareToPoolButton
                 quizData={quiz}
                 quizType="image"
                 title={`Image Quiz - ${selectedImage?.name || 'Generated'}`}
                 description="Quiz generated from uploaded image"
-                onQuizSaved={setSavedQuizId}
               />
               <Button onClick={handleRestart} variant="outline">
                 Generate New Quiz

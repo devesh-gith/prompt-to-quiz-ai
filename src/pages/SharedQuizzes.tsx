@@ -2,15 +2,15 @@
 import { useOrganization, useUser } from '@clerk/clerk-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Share2, Play, Calendar, User, Building, FileText, Image, Youtube, MessageSquare, Sparkles } from 'lucide-react'
+import { Share2, Play, Calendar, User, Building, FileText, Image, Youtube, MessageSquare, Sparkles, Clock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { useQuizOperations } from '@/hooks/useQuizOperations'
+import { useSharedQuizzes } from '@/hooks/useSharedQuizzes'
 import { useEffect, useState } from 'react'
 
 const SharedQuizzes = () => {
   const { user } = useUser()
   const { organization } = useOrganization()
-  const { getSharedQuizzes } = useQuizOperations()
+  const { getSharedQuizzes } = useSharedQuizzes()
   const [quizzes, setQuizzes] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -63,6 +63,20 @@ const SharedQuizzes = () => {
     }
   }
 
+  const getTimeRemaining = (expiresAt: string) => {
+    const now = new Date()
+    const expiry = new Date(expiresAt)
+    const diffMs = expiry.getTime() - now.getTime()
+    const diffMins = Math.floor(diffMs / (1000 * 60))
+    
+    if (diffMins <= 0) return 'Expired'
+    if (diffMins < 60) return `${diffMins} min left`
+    
+    const hours = Math.floor(diffMins / 60)
+    const mins = diffMins % 60
+    return `${hours}h ${mins}m left`
+  }
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-64">Loading shared quizzes...</div>
   }
@@ -70,9 +84,9 @@ const SharedQuizzes = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-black mb-2">Shared Quizzes</h1>
+        <h1 className="text-3xl font-bold text-black mb-2">Organization Quiz Pool</h1>
         <p className="text-gray-600">
-          Quizzes shared with you by your organization admins
+          Quizzes shared by your organization members (automatically expire after 1 hour)
         </p>
         {organization && (
           <div className="mt-4 flex items-center space-x-2">
@@ -88,12 +102,15 @@ const SharedQuizzes = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {quizzes.map((quiz: any) => {
             const IconComponent = getQuizIcon(quiz.quiz_type)
+            const timeRemaining = getTimeRemaining(quiz.expires_at)
+            const isExpiringSoon = timeRemaining.includes('min left') && parseInt(timeRemaining) <= 10
+            
             return (
               <Card key={quiz.id} className="border-gray-200 hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
                         <IconComponent className="h-6 w-6 text-white" />
                       </div>
                       <div className="flex-1">
@@ -107,9 +124,18 @@ const SharedQuizzes = () => {
                         )}
                       </div>
                     </div>
-                    <Badge variant="secondary" className="ml-2">
-                      {getQuizTypeLabel(quiz.quiz_type)}
-                    </Badge>
+                    <div className="flex flex-col space-y-1">
+                      <Badge variant="secondary">
+                        {getQuizTypeLabel(quiz.quiz_type)}
+                      </Badge>
+                      <Badge 
+                        variant={isExpiringSoon ? "destructive" : "outline"}
+                        className="text-xs"
+                      >
+                        <Clock className="h-3 w-3 mr-1" />
+                        {timeRemaining}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -131,9 +157,12 @@ const SharedQuizzes = () => {
                   </div>
                   
                   <div className="pt-4 border-t border-gray-100">
-                    <Button className="w-full bg-black hover:bg-gray-800 text-white">
+                    <Button 
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                      disabled={timeRemaining === 'Expired'}
+                    >
                       <Play className="h-4 w-4 mr-2" />
-                      Take Quiz
+                      {timeRemaining === 'Expired' ? 'Quiz Expired' : 'Take Quiz'}
                     </Button>
                   </div>
                 </CardContent>
@@ -144,17 +173,19 @@ const SharedQuizzes = () => {
       ) : (
         <Card className="border-gray-200">
           <CardContent className="text-center py-12">
-            <Share2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-black mb-2">No Shared Quizzes</h3>
+            <div className="w-20 h-20 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Share2 className="h-10 w-10 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-black mb-2">No Active Shared Quizzes</h3>
             <p className="text-gray-600 mb-6">
               {organization 
-                ? `No quizzes have been shared with ${organization.name} yet.`
+                ? `No quizzes have been shared with ${organization.name} recently. Shared quizzes appear here for 1 hour.`
                 : "Join an organization to access shared quizzes from your team."
               }
             </p>
             {!organization && (
               <Button 
-                className="bg-black hover:bg-gray-800 text-white"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                 onClick={() => window.location.href = '/dashboard/organizations'}
               >
                 View Organizations
