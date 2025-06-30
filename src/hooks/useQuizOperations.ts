@@ -22,6 +22,17 @@ export const useQuizOperations = () => {
 
     setIsSaving(true)
     try {
+      // Set up Supabase auth context with Clerk session
+      const clerkToken = await user.getToken({ template: 'supabase' })
+      if (!clerkToken) {
+        throw new Error('Failed to get authentication token')
+      }
+
+      supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
       const { data, error } = await supabase
         .from('quizzes')
         .insert({
@@ -67,7 +78,27 @@ export const useQuizOperations = () => {
       return false
     }
 
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to share quizzes",
+        variant: "destructive",
+      })
+      return false
+    }
+
     try {
+      // Set up Supabase auth context with Clerk session
+      const clerkToken = await user.getToken({ template: 'supabase' })
+      if (!clerkToken) {
+        throw new Error('Failed to get authentication token')
+      }
+
+      supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
       const { error } = await supabase
         .from('quizzes')
         .update({ 
@@ -75,7 +106,7 @@ export const useQuizOperations = () => {
           organization_id: organization.id 
         })
         .eq('id', quizId)
-        .eq('created_by', user?.id)
+        .eq('created_by', user.id)
 
       if (error) throw error
 
@@ -97,9 +128,20 @@ export const useQuizOperations = () => {
   }
 
   const getSharedQuizzes = async () => {
-    if (!organization) return []
+    if (!organization || !user) return []
 
     try {
+      // Set up Supabase auth context with Clerk session
+      const clerkToken = await user.getToken({ template: 'supabase' })
+      if (!clerkToken) {
+        throw new Error('Failed to get authentication token')
+      }
+
+      supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
       const { data, error } = await supabase
         .from('quizzes')
         .select('*')
