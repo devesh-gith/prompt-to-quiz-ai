@@ -25,14 +25,26 @@ export const useQuizOperations = () => {
     try {
       // Set up Supabase auth context with Clerk session
       const clerkToken = await getToken({ template: 'supabase' })
+      console.log('Clerk token received:', clerkToken ? 'Token exists' : 'No token')
+      
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
+      }
+
+      // Parse the JWT to see its structure
+      try {
+        const tokenPayload = JSON.parse(atob(clerkToken.split('.')[1]))
+        console.log('JWT payload:', tokenPayload)
+      } catch (e) {
+        console.error('Failed to parse JWT:', e)
       }
 
       await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })
+
+      console.log('Attempting to save quiz with user ID:', user.id)
 
       const { data, error } = await supabase
         .from('quizzes')
@@ -48,7 +60,12 @@ export const useQuizOperations = () => {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error details:', error)
+        throw error
+      }
+
+      console.log('Quiz saved successfully:', data)
 
       toast({
         title: "Success",
