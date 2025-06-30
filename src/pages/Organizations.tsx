@@ -8,7 +8,7 @@ import { useState } from 'react'
 
 const Organizations = () => {
   const { user } = useUser()
-  const { organizationList, isLoaded } = useOrganizationList()
+  const { userMemberships, isLoaded } = useOrganizationList()
   const [showCreateOrg, setShowCreateOrg] = useState(false)
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
 
@@ -97,10 +97,10 @@ const Organizations = () => {
         </Button>
       </div>
 
-      {organizationList && organizationList.length > 0 ? (
+      {userMemberships && userMemberships.data && userMemberships.data.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {organizationList.map((org) => (
-            <Card key={org.organization.id} className="border-gray-200 hover:shadow-lg transition-shadow">
+          {userMemberships.data.map((membership) => (
+            <Card key={membership.organization.id} className="border-gray-200 hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center">
@@ -108,31 +108,31 @@ const Organizations = () => {
                   </div>
                   <div className="flex-1">
                     <CardTitle className="text-lg font-bold text-black flex items-center">
-                      {org.organization.name}
-                      {org.membership.role === 'admin' && (
+                      {membership.organization.name}
+                      {membership.role === 'admin' && (
                         <Crown className="h-4 w-4 ml-2 text-yellow-500" />
                       )}
                     </CardTitle>
-                    <p className="text-sm text-gray-600 capitalize">{org.membership.role}</p>
+                    <p className="text-sm text-gray-600 capitalize">{membership.role}</p>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Members</span>
-                  <span className="font-semibold text-black">{org.organization.membersCount}</span>
+                  <span className="font-semibold text-black">{membership.organization.membersCount}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Created</span>
                   <span className="font-semibold text-black">
-                    {new Date(org.organization.createdAt).toLocaleDateString()}
+                    {new Date(membership.organization.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                {org.membership.role === 'admin' && (
+                {membership.role === 'admin' && (
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => setSelectedOrgId(org.organization.id)}
+                    onClick={() => setSelectedOrgId(membership.organization.id)}
                   >
                     <Settings className="h-4 w-4 mr-2" />
                     Manage Organization
