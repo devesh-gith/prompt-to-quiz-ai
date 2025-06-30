@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { supabase } from '@/integrations/supabase/client'
@@ -30,23 +31,12 @@ export const useQuizOperations = () => {
         throw new Error('Failed to get authentication token')
       }
 
-      // Parse the JWT to see its structure
-      try {
-        const tokenPayload = JSON.parse(atob(clerkToken.split('.')[1]))
-        console.log('JWT payload:', tokenPayload)
-        console.log('JWT sub field:', tokenPayload.sub)
-        console.log('JWT user_id field:', tokenPayload.user_id)
-      } catch (e) {
-        console.error('Failed to parse JWT:', e)
-      }
-
       await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })
 
       console.log('Attempting to save quiz with user ID:', user.id)
-      console.log('created_by will be set to:', user.id)
 
       const { data, error } = await supabase
         .from('quizzes')
