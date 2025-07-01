@@ -1,9 +1,11 @@
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Share2, Users, Clock, Shield } from 'lucide-react'
 import { useOrganization } from '@clerk/clerk-react'
 import { useSharedQuizzes } from '@/hooks/useSharedQuizzes'
 import { useOrganizationRole } from '@/hooks/useOrganizationRole'
+import ShareQuizDialog from './ShareQuizDialog'
 
 interface ShareToPoolButtonProps {
   quizData?: any
@@ -16,15 +18,26 @@ const ShareToPoolButton = ({
   quizData, 
   quizType, 
   title, 
-  description
+  description = ''
 }: ShareToPoolButtonProps) => {
   const { organization } = useOrganization()
   const { saveToSharedQuizzes, isSaving } = useSharedQuizzes()
   const { getCurrentOrganizationRole } = useOrganizationRole()
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleShare = async () => {
+  const handleShare = async (customTitle: string, customDescription: string) => {
     if (!organization || !quizData) return
-    await saveToSharedQuizzes(quizData, quizType, title, description)
+    
+    const result = await saveToSharedQuizzes(
+      quizData, 
+      quizType, 
+      customTitle, 
+      customDescription
+    )
+    
+    if (result) {
+      setDialogOpen(false)
+    }
   }
 
   if (!organization) {
@@ -57,19 +70,26 @@ const ShareToPoolButton = ({
   }
 
   return (
-    <Button 
-      onClick={handleShare}
-      disabled={isSaving || !quizData}
-      className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2"
-    >
-      <Share2 className="h-4 w-4" />
-      <span>
-        {isSaving 
-          ? 'Sharing...' 
-          : `Share for 1hr with ${organization.name}`
-        }
-      </span>
-    </Button>
+    <>
+      <Button 
+        onClick={() => setDialogOpen(true)}
+        disabled={!quizData}
+        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2"
+      >
+        <Share2 className="h-4 w-4" />
+        <span>Share with {organization.name}</span>
+      </Button>
+
+      <ShareQuizDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        defaultTitle={title}
+        defaultDescription={description}
+        organizationName={organization.name}
+        isSharing={isSaving}
+        onShare={handleShare}
+      />
+    </>
   )
 }
 
