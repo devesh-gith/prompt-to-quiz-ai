@@ -118,9 +118,43 @@ export const useSharedQuizzes = () => {
     }
   }
 
+  const getQuizResults = async () => {
+    if (!user) {
+      return []
+    }
+
+    try {
+      const clerkToken = await getToken({ template: 'supabase' })
+      if (!clerkToken) {
+        throw new Error('Failed to get authentication token')
+      }
+
+      await supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
+      const { data, error } = await supabase
+        .from('quiz_results')
+        .select('quiz_id')
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error fetching quiz results:', error)
+        return []
+      }
+
+      return data || []
+    } catch (error) {
+      console.error('Error fetching quiz results:', error)
+      return []
+    }
+  }
+
   return {
     saveToSharedQuizzes,
     getSharedQuizzes,
+    getQuizResults,
     isSaving,
     isLoading
   }

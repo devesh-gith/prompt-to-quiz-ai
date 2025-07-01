@@ -51,37 +51,38 @@ const ShareQuizDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] border-2 border-gray-200">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
+          <DialogTitle className="flex items-center space-x-2 text-black">
             <Share2 className="h-5 w-5" />
             <span>Share Quiz with {organizationName}</span>
           </DialogTitle>
-          <DialogDescription>
-            Customize the quiz details before sharing with your organization. The quiz will be available for 1 hour.
+          <DialogDescription className="text-gray-600">
+            Customize the quiz details before sharing with your organization. The quiz will be available for 1 hour and can only be taken once per member.
           </DialogDescription>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Quiz Title</Label>
+            <Label htmlFor="title" className="text-black font-medium">Quiz Title</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter quiz title..."
               disabled={isSharing}
+              className="border-gray-300 focus:border-black focus:ring-black"
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description" className="text-black font-medium">Description (optional)</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add a brief description of the quiz..."
-              className="min-h-[80px] resize-none"
+              className="min-h-[80px] resize-none border-gray-300 focus:border-black focus:ring-black"
               disabled={isSharing}
             />
           </div>
@@ -92,13 +93,14 @@ const ShareQuizDialog = ({
             variant="outline" 
             onClick={() => handleOpenChange(false)}
             disabled={isSharing}
+            className="border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             Cancel
           </Button>
           <Button 
             onClick={handleShare}
             disabled={isSharing || !title.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-black hover:bg-gray-800 text-white"
           >
             {isSharing ? (
               <>
