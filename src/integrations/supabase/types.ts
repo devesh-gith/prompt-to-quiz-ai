@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          role: Database["public"]["Enums"]["organization_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          role?: Database["public"]["Enums"]["organization_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["organization_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -159,9 +186,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      is_organization_admin: {
+        Args: { user_id: string; org_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      organization_role: "admin" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -276,6 +307,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      organization_role: ["admin", "member"],
+    },
   },
 } as const

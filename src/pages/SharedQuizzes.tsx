@@ -1,10 +1,10 @@
-
 import { useOrganization, useUser } from '@clerk/clerk-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Share2, Play, Calendar, Building, FileText, Image, Youtube, MessageSquare, Sparkles, Clock } from 'lucide-react'
+import { Share2, Play, Calendar, Building, FileText, Image, Youtube, MessageSquare, Sparkles, Clock, Shield } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useSharedQuizzes } from '@/hooks/useSharedQuizzes'
+import { useOrganizationRole } from '@/hooks/useOrganizationRole'
 import { useEffect, useState } from 'react'
 import QuizDisplay from '@/components/QuizDisplay'
 
@@ -12,6 +12,7 @@ const SharedQuizzes = () => {
   const { user } = useUser()
   const { organization } = useOrganization()
   const { getSharedQuizzes, isLoading } = useSharedQuizzes()
+  const { role, isAdmin, setUserAsAdmin } = useOrganizationRole()
   const [quizzes, setQuizzes] = useState([])
   const [selectedQuiz, setSelectedQuiz] = useState(null)
 
@@ -89,6 +90,13 @@ const SharedQuizzes = () => {
     setSelectedQuiz(null)
   }
 
+  const handleBecomeAdmin = async () => {
+    const success = await setUserAsAdmin()
+    if (success) {
+      console.log('User is now an admin')
+    }
+  }
+
   // If a quiz is selected, show the quiz display component
   if (selectedQuiz) {
     return (
@@ -121,11 +129,31 @@ const SharedQuizzes = () => {
           Quizzes shared by your organization members (automatically expire after 1 hour)
         </p>
         {organization && (
-          <div className="mt-4 flex items-center space-x-2">
-            <Building className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">
-              Currently viewing: <span className="font-semibold">{organization.name}</span>
-            </span>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Building className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-600">
+                Currently viewing: <span className="font-semibold">{organization.name}</span>
+              </span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Shield className="h-4 w-4 text-blue-500" />
+                <span className="text-sm text-blue-600 font-medium">
+                  Role: {role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Loading...'}
+                </span>
+              </div>
+              {!isAdmin && (
+                <Button 
+                  onClick={handleBecomeAdmin}
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                >
+                  Become Admin (Dev)
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -213,7 +241,7 @@ const SharedQuizzes = () => {
             <h3 className="text-xl font-semibold text-black mb-2">No Active Shared Quizzes</h3>
             <p className="text-gray-600 mb-6">
               {organization 
-                ? `No quizzes have been shared with ${organization.name} recently. Create and share a quiz to see it appear here!`
+                ? `No quizzes have been shared with ${organization.name} recently. ${isAdmin ? 'Create and share a quiz to see it appear here!' : 'Only organization admins can share quizzes.'}`
                 : "Join an organization to access shared quizzes from your team."
               }
             </p>
