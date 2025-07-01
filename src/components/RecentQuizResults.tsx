@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Trophy, Target, Image, Youtube, FileText, MessageSquare, Sparkles } from 'lucide-react'
 import { useRecentQuizResults } from '@/hooks/useRecentQuizResults'
+import { QuizResultsSkeleton } from '@/components/LoadingSkeleton'
 
 const RecentQuizResults = () => {
   const { results, isLoading } = useRecentQuizResults()
@@ -56,21 +57,7 @@ const RecentQuizResults = () => {
   }
 
   if (isLoading) {
-    return (
-      <Card className="border-2 border-gray-200 bg-white">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-bold text-black flex items-center space-x-2">
-            <Trophy className="h-5 w-5" />
-            <span>Recent Quiz Results</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="text-gray-500">Loading recent results...</div>
-          </div>
-        </CardContent>
-      </Card>
-    )
+    return <QuizResultsSkeleton />
   }
 
   if (results.length === 0) {

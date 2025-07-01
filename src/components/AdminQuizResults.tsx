@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Calendar, Trophy, User, Mail, Image, Youtube, FileText, MessageSquare, Sparkles } from 'lucide-react'
 import { useAdminQuizResults } from '@/hooks/useAdminQuizResults'
+import { AdminTableSkeleton } from '@/components/LoadingSkeleton'
 
 const AdminQuizResults = () => {
   const { results, isLoading } = useAdminQuizResults()
@@ -57,21 +58,7 @@ const AdminQuizResults = () => {
   }
 
   if (isLoading) {
-    return (
-      <Card className="border-2 border-gray-200 bg-white">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-bold text-black flex items-center space-x-2">
-            <Trophy className="h-5 w-5" />
-            <span>Organization Quiz Results</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="text-gray-500">Loading quiz results...</div>
-          </div>
-        </CardContent>
-      </Card>
-    )
+    return <AdminTableSkeleton />
   }
 
   if (results.length === 0) {

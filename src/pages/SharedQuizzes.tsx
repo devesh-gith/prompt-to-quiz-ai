@@ -8,6 +8,7 @@ import { useSharedQuizzes } from '@/hooks/useSharedQuizzes'
 import { useOrganizationRole } from '@/hooks/useOrganizationRole'
 import { useEffect, useState } from 'react'
 import QuizDisplay from '@/components/QuizDisplay'
+import { QuizCardSkeleton } from '@/components/LoadingSkeleton'
 
 const SharedQuizzes = () => {
   const { user } = useUser()
@@ -133,7 +134,38 @@ const SharedQuizzes = () => {
   }
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-64">Loading shared quizzes...</div>
+    return (
+      <div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-black mb-2">Organization Quiz Pool</h1>
+          <p className="text-gray-600">
+            Professional quizzes shared by your organization (automatically expire after 1 hour)
+          </p>
+          {organization && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Building className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-600">
+                  Organization: <span className="font-semibold text-black">{organization.name}</span>
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Shield className={`h-4 w-4 ${isAdmin ? 'text-black' : 'text-gray-500'}`} />
+                <span className={`text-sm font-medium ${isAdmin ? 'text-black' : 'text-gray-600'}`}>
+                  Role: {isAdmin ? 'Admin' : 'Member'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <QuizCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
