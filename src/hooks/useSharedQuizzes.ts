@@ -151,10 +151,55 @@ export const useSharedQuizzes = () => {
     }
   }
 
+  const saveQuizResult = async (quizId: string, score: number, totalQuestions: number, answers: any) => {
+    if (!user) {
+      console.error('No user found when trying to save quiz result')
+      return null
+    }
+
+    try {
+      const clerkToken = await getToken({ template: 'supabase' })
+      if (!clerkToken) {
+        throw new Error('Failed to get authentication token')
+      }
+
+      await supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
+      console.log('Saving quiz result:', { quizId, score, totalQuestions })
+
+      const { data, error } = await supabase
+        .from('quiz_results')
+        .insert({
+          quiz_id: quizId,
+          user_id: user.id,
+          score,
+          total_questions: totalQuestions,
+          answers
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error saving quiz result:', error)
+        throw error
+      }
+
+      console.log('Quiz result saved successfully:', data)
+      return data
+    } catch (error) {
+      console.error('Error saving quiz result:', error)
+      return null
+    }
+  }
+
   return {
     saveToSharedQuizzes,
     getSharedQuizzes,
     getQuizResults,
+    saveQuizResult,
     isSaving,
     isLoading
   }

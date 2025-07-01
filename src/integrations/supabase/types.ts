@@ -182,6 +182,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_old_quiz_results: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_clerk_user_id: {
         Args: Record<PropertyKey, never>
         Returns: string

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Image, Youtube, FileText, MessageSquare, Sparkles, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import RecentQuizResults from '@/components/RecentQuizResults'
 
 const DashboardHome = () => {
   const navigate = useNavigate()
@@ -52,7 +53,7 @@ const DashboardHome = () => {
         <p className="text-gray-600">Choose how you'd like to generate your quiz questions</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
         {quizTypes.map((type, index) => (
           <Card 
             key={index} 
@@ -76,16 +77,9 @@ const DashboardHome = () => {
         ))}
       </div>
 
-      <div className="mt-12">
-        <h2 className="text-2xl font-bold text-black mb-6">Recent Quizzes</h2>
-        <Card className="border-gray-200">
-          <CardContent className="p-8 text-center">
-            <p className="text-gray-500 mb-4">No quizzes created yet</p>
-            <Button className="bg-black text-white hover:bg-gray-800">
-              Create Your First Quiz
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Recent Quiz Results Section */}
+      <div className="mb-8">
+        <RecentQuizResults />
       </div>
     </div>
   )
