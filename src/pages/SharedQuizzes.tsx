@@ -17,7 +17,7 @@ const SharedQuizzes = () => {
   const { getCurrentOrganizationRole } = useOrganizationRole()
   const [quizzes, setQuizzes] = useState([])
   const [selectedQuiz, setSelectedQuiz] = useState(null)
-  const [takenQuizzes, setTakenQuizzes] = useState(new Set())
+  const [takenQuizzes, setTakenQuizzes] = useState(new Set<string>())
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -30,7 +30,7 @@ const SharedQuizzes = () => {
         // Fetch taken quiz results for current user
         if (user) {
           const results = await getQuizResults()
-          const takenQuizIds = new Set(results.map(result => result.quiz_id))
+          const takenQuizIds = new Set<string>(results.map((result: any) => result.quiz_id))
           setTakenQuizzes(takenQuizIds)
         }
       }
@@ -56,7 +56,7 @@ const SharedQuizzes = () => {
         const sharedQuizzes = await getSharedQuizzes()
         setQuizzes(sharedQuizzes)
         const results = await getQuizResults()
-        const takenQuizIds = new Set(results.map(result => result.quiz_id))
+        const takenQuizIds = new Set<string>(results.map((result: any) => result.quiz_id))
         setTakenQuizzes(takenQuizIds)
       }
     }
