@@ -17,6 +17,11 @@ interface AdminQuizResult {
   user_email: string
 }
 
+interface UserInfo {
+  name: string
+  email: string
+}
+
 export const useAdminQuizResults = () => {
   const { user } = useUser()
   const { getToken } = useAuth()
@@ -86,11 +91,11 @@ export const useAdminQuizResults = () => {
         quizMap.has(result.quiz_id)
       )
 
-      // Get organization members to get user details
-      const organizationMembers = organization.memberships || []
-      const memberMap = new Map(
-        organizationMembers.map(member => {
-          const userData = member.publicUserData
+      // Get organization members using the getMemberships method
+      const memberships = await organization.getMemberships()
+      const memberMap = new Map<string, UserInfo>(
+        memberships.data?.map(membership => {
+          const userData = membership.publicUserData
           return [
             userData?.userId || '',
             {
@@ -98,7 +103,7 @@ export const useAdminQuizResults = () => {
               email: userData?.identifier || 'No email'
             }
           ]
-        })
+        }) || []
       )
 
       // Combine the data
