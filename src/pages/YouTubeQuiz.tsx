@@ -1,62 +1,59 @@
-
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { useToast } from '@/hooks/use-toast'
 import { Youtube, Loader2 } from 'lucide-react'
-import LocalQuizDisplay from '@/components/LocalQuizDisplay'
+import { useState } from 'react'
+import { supabase } from '@/integrations/supabase/client'
+import { useToast } from '@/hooks/use-toast'
+import QuizDisplay from '@/components/QuizDisplay'
+import ShareToPoolButton from '@/components/ShareToPoolButton'
 
-const YouTubeQuiz = () => {  
-  const [videoUrl, setVideoUrl] = useState('')
-  const [quiz, setQuiz] = useState<any>(null)
+const YouTubeQuiz = () => {
+  const [youtubeUrl, setYoutubeUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [quiz, setQuiz] = useState(null)
   const { toast } = useToast()
 
-  const handleRestart = () => {
-    setQuiz(null)
-    setVideoUrl('')
-  }
-
-  const generateQuiz = async () => {
-    setIsLoading(true)
-    try {
-      // Simulate quiz generation (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      const generatedQuiz = {
-        questions: [
-          {
-            question: "What is the main topic of the video?",
-            options: ["Technology", "Cooking", "Travel", "Science"],
-            correct: 0,
-            explanation: "The video primarily discusses technology."
-          },
-          {
-            question: "Who is the presenter in the video?",
-            options: ["John Doe", "Jane Smith", "An AI", "A group of experts"],
-            correct: 2,
-            explanation: "The presenter is an AI."
-          },
-          {
-            question: "What is the video's length?",
-            options: ["5 minutes", "10 minutes", "15 minutes", "20 minutes"],
-            correct: 1,
-            explanation: "The video is 10 minutes long."
-          }
-        ]
-      }
-
-      setQuiz(generatedQuiz)
-      toast({
-        title: "Quiz Generated!",
-        description: "The quiz based on the YouTube video has been generated.",
-      })
-    } catch (error) {
-      console.error("Error generating quiz:", error)
+  const handleGenerateQuiz = async () => {
+    if (!youtubeUrl.trim()) {
       toast({
         title: "Error",
-        description: "Failed to generate quiz. Please try again.",
+        description: "Please enter a YouTube URL",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate YouTube URL format
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]+/
+    if (!youtubeRegex.test(youtubeUrl)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid YouTube URL",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-youtube-quiz', {
+        body: { youtubeUrl, questionCount: 5 }
+      })
+
+      if (error) throw error
+
+      setQuiz(data)
+      toast({
+        title: "Success",
+        description: "Quiz generated successfully!",
+      })
+    } catch (error) {
+      console.error('Error generating quiz:', error)
+      toast({
+        title: "Error",
+        description: "Failed to generate quiz. This may take a few minutes for longer videos.",
         variant: "destructive",
       })
     } finally {
@@ -64,57 +61,94 @@ const YouTubeQuiz = () => {
     }
   }
 
+  const handleRestart = () => {
+    setQuiz(null)
+    setYoutubeUrl('')
+  }
+
+  if (quiz) {
+    return (
+      <div>
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center">
+                <Youtube className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-black">YouTube to Quiz</h1>
+                <p className="text-gray-600">Your quiz is ready!</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <ShareToPoolButton
+                quizData={quiz}
+                quizType="youtube"
+                title={`YouTube Quiz - ${youtubeUrl}`}
+                description="Quiz generated from YouTube video"
+              />
+              <Button onClick={handleRestart} variant="outline">
+                Generate New Quiz
+              </Button>
+            </div>
+          </div>
+        </div>
+        <QuizDisplay quiz={quiz} onRestart={handleRestart} />
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-black">YouTube Quiz Generator</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600">
-            Generate quizzes from YouTube videos. Simply paste the video URL and let our AI create engaging questions!
-          </p>
-        </CardContent>
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center">
+            <Youtube className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-black">YouTube to Quiz</h1>
+            <p className="text-gray-600">Convert YouTube videos into engaging quizzes</p>
+          </div>
+        </div>
       </div>
-      
-      {quiz ? (
-        <LocalQuizDisplay quiz={quiz} onRestart={handleRestart} />
-      ) : (
-        <Card className="border-2 border-gray-200 bg-white">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-black">Enter YouTube Video URL</CardTitle>
-            <CardDescription>Paste the link to generate a quiz.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Input 
-                type="url" 
-                placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                disabled={isLoading}
-              />
+
+      <Card className="border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-black">YouTube Video URL</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Input 
+              placeholder="https://www.youtube.com/watch?v=..." 
+              className="w-full"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+            />
+            <p className="text-sm text-gray-500">Enter a valid YouTube video URL</p>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Quiz Settings</p>
+              <p className="text-xs text-gray-500">Will generate 5 multiple choice questions</p>
             </div>
             <Button 
-              className="w-full bg-black text-white hover:bg-gray-800"
-              onClick={generateQuiz}
-              disabled={isLoading || !videoUrl}
+              onClick={handleGenerateQuiz}
+              disabled={isLoading || !youtubeUrl.trim()}
+              className="bg-black text-white hover:bg-gray-800"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Quiz...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
                 </>
               ) : (
-                <>
-                  <Youtube className="mr-2 h-4 w-4" />
-                  Generate Quiz
-                </>
+                'Generate Quiz'
               )}
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

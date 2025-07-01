@@ -168,7 +168,7 @@ export const useSharedQuizzes = () => {
         refresh_token: '',
       })
 
-      console.log('Saving quiz result:', { quizId, score, totalQuestions, userId: user.id })
+      console.log('Saving quiz result:', { quizId, score, totalQuestions })
 
       const { data, error } = await supabase
         .from('quiz_results')

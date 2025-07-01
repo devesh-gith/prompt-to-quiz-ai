@@ -1,131 +1,238 @@
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Image, Upload, Loader2, X } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import { Upload, Loader2 } from 'lucide-react'
-import LocalQuizDisplay from '@/components/LocalQuizDisplay'
+import QuizDisplay from '@/components/QuizDisplay'
+import ShareToPoolButton from '@/components/ShareToPoolButton'
 
 const ImageQuiz = () => {
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState('')
-  const [quiz, setQuiz] = useState<any>(null)
-  const [isUploading, setIsUploading] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [quiz, setQuiz] = useState(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  const handleRestart = () => {
-    setQuiz(null)
-    setImageFile(null)
-    setImagePreview('')
-    setIsUploading(false)
-  }
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
     if (file) {
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Error",
+          description: "Please select a valid image file",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image file must be less than 10MB",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setSelectedImage(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  const generateQuiz = async () => {
-    if (!imageFile) {
+  const removeImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const result = reader.result as string
+        // Remove the data URL prefix to get just the base64 string
+        const base64 = result.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = reject
+    })
+  }
+
+  const handleGenerateQuiz = async () => {
+    if (!selectedImage) {
       toast({
         title: "Error",
-        description: "Please upload an image first.",
+        description: "Please select an image first",
         variant: "destructive",
       })
       return
     }
 
-    setIsUploading(true)
+    setIsLoading(true)
+
     try {
-      // Simulate quiz generation
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const imageBase64 = await convertToBase64(selectedImage)
+      
+      const { data, error } = await supabase.functions.invoke('generate-image-quiz', {
+        body: { imageBase64, questionCount: 5 }
+      })
 
-      const generatedQuiz = {
-        questions: [
-          {
-            question: "What is the main subject of this image?",
-            options: ["Nature", "Technology", "People", "Abstract"],
-            correct: 0,
-            explanation: "The image primarily depicts a natural scene."
-          },
-          {
-            question: "Which colors are dominant in the image?",
-            options: ["Red and Orange", "Blue and Green", "Black and White", "Yellow and Purple"],
-            correct: 1,
-            explanation: "Blue and green are the most prominent colors."
-          },
-          {
-            question: "What is the overall mood of the image?",
-            options: ["Calm", "Exciting", "Sad", "Mysterious"],
-            correct: 0,
-            explanation: "The image evokes a sense of calmness."
-          }
-        ]
-      }
+      if (error) throw error
 
-      setQuiz(generatedQuiz)
+      setQuiz(data)
+      toast({
+        title: "Success",
+        description: "Quiz generated successfully!",
+      })
     } catch (error) {
-      console.error("Error generating quiz:", error)
+      console.error('Error generating quiz:', error)
       toast({
         title: "Error",
         description: "Failed to generate quiz. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setIsUploading(false)
+      setIsLoading(false)
     }
+  }
+
+  const handleRestart = () => {
+    setQuiz(null)
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  if (quiz) {
+    return (
+      <div>
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Image className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-black">Image to Quiz</h1>
+                <p className="text-gray-600">Your quiz is ready!</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <ShareToPoolButton
+                quizData={quiz}
+                quizType="image"
+                title={`Image Quiz - ${selectedImage?.name || 'Generated'}`}
+                description="Quiz generated from uploaded image"
+              />
+              <Button onClick={handleRestart} variant="outline">
+                Generate New Quiz
+              </Button>
+            </div>
+          </div>
+        </div>
+        <QuizDisplay quiz={quiz} onRestart={handleRestart} />
+      </div>
+    )
   }
 
   return (
     <div>
+      <div className="mb-8">
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+            <Image className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-black">Image to Quiz</h1>
+            <p className="text-gray-600">Upload an image and generate quiz questions using AI</p>
+          </div>
+        </div>
+      </div>
+
       <Card className="border-gray-200">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-black">Image Quiz Generator</CardTitle>
+          <CardTitle className="text-xl font-bold text-black">Upload Image</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {!quiz && (
-            <>
-              <div className="text-center">
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Uploaded" className="max-h-64 mx-auto rounded-md mb-4" />
-                ) : (
-                  <div className="border-2 border-dashed border-gray-400 rounded-md p-6 mb-4">
-                    <Upload className="w-10 h-10 text-gray-500 mx-auto mb-2" />
-                    <p className="text-gray-500">Upload an image to generate a quiz</p>
-                  </div>
-                )}
-                <Input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="image-upload" />
-                <label htmlFor="image-upload">
-                  <Button variant="secondary" asChild>
-                    <span className="flex items-center">
-                      <Upload className="w-4 h-4 mr-2" />
-                      {imageFile ? 'Change Image' : 'Upload Image'}
-                    </span>
-                  </Button>
-                </label>
-              </div>
-
-              <Button className="w-full bg-black text-white hover:bg-gray-800" onClick={generateQuiz} disabled={isUploading || !imageFile}>
-                {isUploading ? (
-                  <span className="flex items-center">
-                    Generating Quiz...
-                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                  </span>
-                ) : 'Generate Quiz'}
+        <CardContent className="space-y-6">
+          {!imagePreview ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+              <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">Drag and drop an image here, or click to browse</p>
+              <p className="text-sm text-gray-500">Supports JPG, PNG, GIF files (max 10MB)</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <Button 
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-4 bg-black text-white hover:bg-gray-800"
+              >
+                Choose Image
               </Button>
-            </>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Selected image"
+                  className="w-full max-h-64 object-contain rounded-lg border"
+                />
+                <Button
+                  onClick={removeImage}
+                  size="sm"
+                  variant="outline"
+                  className="absolute top-2 right-2 bg-white/80 hover:bg-white"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-gray-600 text-center">
+                {selectedImage?.name} ({Math.round((selectedImage?.size || 0) / 1024)} KB)
+              </p>
+            </div>
           )}
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Quiz Settings</p>
+              <p className="text-xs text-gray-500">Will generate 5 multiple choice questions</p>
+            </div>
+            <Button 
+              onClick={handleGenerateQuiz}
+              disabled={isLoading || !selectedImage}
+              className="bg-black text-white hover:bg-gray-800"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                'Generate Quiz'
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
-      
-      {quiz ? (
-        <LocalQuizDisplay quiz={quiz} onRestart={handleRestart} />
-      ) : (
-        null
-      )}
     </div>
   )
 }
