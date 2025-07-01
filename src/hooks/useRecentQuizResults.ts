@@ -39,34 +39,55 @@ export const useRecentQuizResults = () => {
 
       console.log('Fetching recent quiz results for user:', user.id)
 
-      const { data, error } = await supabase
+      // First, get quiz results
+      const { data: quizResultsData, error: resultsError } = await supabase
         .from('quiz_results')
-        .select(`
-          id,
-          quiz_id,
-          score,
-          total_questions,
-          completed_at,
-          shared_quizzes!inner(title, quiz_type)
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('completed_at', { ascending: false })
         .limit(10)
 
-      if (error) {
-        console.error('Error fetching recent quiz results:', error)
-        throw error
+      if (resultsError) {
+        console.error('Error fetching quiz results:', resultsError)
+        throw resultsError
       }
 
-      const formattedResults = data?.map(result => ({
-        id: result.id,
-        quiz_id: result.quiz_id,
-        score: result.score,
-        total_questions: result.total_questions,
-        completed_at: result.completed_at,
-        quiz_title: result.shared_quizzes?.title || 'Unknown Quiz',
-        quiz_type: result.shared_quizzes?.quiz_type || 'unknown'
-      })) || []
+      if (!quizResultsData || quizResultsData.length === 0) {
+        console.log('No quiz results found')
+        setResults([])
+        return []
+      }
+
+      // Get unique quiz IDs
+      const quizIds = [...new Set(quizResultsData.map(result => result.quiz_id))]
+
+      // Fetch quiz details from shared_quizzes
+      const { data: quizData, error: quizError } = await supabase
+        .from('shared_quizzes')
+        .select('id, title, quiz_type')
+        .in('id', quizIds)
+
+      if (quizError) {
+        console.error('Error fetching quiz details:', quizError)
+        throw quizError
+      }
+
+      // Create a map for quick lookup
+      const quizMap = new Map(quizData?.map(quiz => [quiz.id, quiz]) || [])
+
+      // Combine the data
+      const formattedResults = quizResultsData.map(result => {
+        const quiz = quizMap.get(result.quiz_id)
+        return {
+          id: result.id,
+          quiz_id: result.quiz_id,
+          score: result.score,
+          total_questions: result.total_questions,
+          completed_at: result.completed_at,
+          quiz_title: quiz?.title || 'Unknown Quiz',
+          quiz_type: quiz?.quiz_type || 'unknown'
+        }
+      })
 
       console.log('Fetched recent results:', formattedResults.length, 'results')
       setResults(formattedResults)
