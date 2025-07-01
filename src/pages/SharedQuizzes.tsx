@@ -12,7 +12,7 @@ const SharedQuizzes = () => {
   const { user } = useUser()
   const { organization } = useOrganization()
   const { getSharedQuizzes, isLoading } = useSharedQuizzes()
-  const { role, isAdmin, setUserAsAdmin } = useOrganizationRole()
+  const { getCurrentOrganizationRole } = useOrganizationRole()
   const [quizzes, setQuizzes] = useState([])
   const [selectedQuiz, setSelectedQuiz] = useState(null)
 
@@ -90,12 +90,7 @@ const SharedQuizzes = () => {
     setSelectedQuiz(null)
   }
 
-  const handleBecomeAdmin = async () => {
-    const success = await setUserAsAdmin()
-    if (success) {
-      console.log('User is now an admin')
-    }
-  }
+  const { isAdmin, role } = organization ? getCurrentOrganizationRole(organization.id) : { isAdmin: false, role: null }
 
   // If a quiz is selected, show the quiz display component
   if (selectedQuiz) {
@@ -136,23 +131,11 @@ const SharedQuizzes = () => {
                 Currently viewing: <span className="font-semibold">{organization.name}</span>
               </span>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Shield className="h-4 w-4 text-blue-500" />
-                <span className="text-sm text-blue-600 font-medium">
-                  Role: {role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Loading...'}
-                </span>
-              </div>
-              {!isAdmin && (
-                <Button 
-                  onClick={handleBecomeAdmin}
-                  size="sm"
-                  variant="outline"
-                  className="text-xs"
-                >
-                  Become Admin (Dev)
-                </Button>
-              )}
+            <div className="flex items-center space-x-2">
+              <Shield className={`h-4 w-4 ${isAdmin ? 'text-green-500' : 'text-gray-500'}`} />
+              <span className={`text-sm font-medium ${isAdmin ? 'text-green-600' : 'text-gray-600'}`}>
+                Role: {isAdmin ? 'Admin' : 'Member'}
+              </span>
             </div>
           </div>
         )}

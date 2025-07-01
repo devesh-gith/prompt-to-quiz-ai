@@ -20,18 +20,11 @@ const ShareToPoolButton = ({
 }: ShareToPoolButtonProps) => {
   const { organization } = useOrganization()
   const { saveToSharedQuizzes, isSaving } = useSharedQuizzes()
-  const { isAdmin, isLoading: roleLoading, setUserAsAdmin } = useOrganizationRole()
+  const { getCurrentOrganizationRole } = useOrganizationRole()
 
   const handleShare = async () => {
     if (!organization || !quizData) return
     await saveToSharedQuizzes(quizData, quizType, title, description)
-  }
-
-  const handleBecomeAdmin = async () => {
-    const success = await setUserAsAdmin()
-    if (success) {
-      console.log('User is now an admin')
-    }
   }
 
   if (!organization) {
@@ -42,6 +35,8 @@ const ShareToPoolButton = ({
       </Button>
     )
   }
+
+  const { isAdmin, isLoading: roleLoading } = getCurrentOrganizationRole(organization.id)
 
   if (roleLoading) {
     return (
@@ -54,20 +49,10 @@ const ShareToPoolButton = ({
 
   if (!isAdmin) {
     return (
-      <div className="flex flex-col items-center space-y-2">
-        <Button variant="outline" disabled className="flex items-center space-x-2">
-          <Shield className="h-4 w-4" />
-          <span>Admin Only - Can't Share to Pool</span>
-        </Button>
-        <Button 
-          onClick={handleBecomeAdmin}
-          size="sm"
-          variant="ghost"
-          className="text-xs text-blue-600 hover:text-blue-800"
-        >
-          Become Admin (Dev Only)
-        </Button>
-      </div>
+      <Button variant="outline" disabled className="flex items-center space-x-2">
+        <Shield className="h-4 w-4" />
+        <span>Admin Only - Can't Share to Pool</span>
+      </Button>
     )
   }
 
@@ -78,7 +63,6 @@ const ShareToPoolButton = ({
       className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2"
     >
       <Share2 className="h-4 w-4" />
-      <Clock className="h-4 w-4" />
       <span>
         {isSaving 
           ? 'Sharing...' 
