@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Image, Youtube, FileText, MessageSquare, Sparkles, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import RecentQuizResults from '@/components/RecentQuizResults'
+import AdminQuizResults from '@/components/AdminQuizResults'
+import { useOrganizationRole } from '@/hooks/useOrganizationRole'
 
 const DashboardHome = () => {
   const navigate = useNavigate()
+  const { isAdmin } = useOrganizationRole()
 
   const quizTypes = [
     {
@@ -49,10 +52,18 @@ const DashboardHome = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-black mb-2">Create Your Quiz</h1>
-        <p className="text-gray-600">Choose how you'd like to generate your quiz questions</p>
+        <h1 className="text-3xl font-bold text-black mb-2">
+          {isAdmin ? 'Admin Dashboard' : 'Create Your Quiz'}
+        </h1>
+        <p className="text-gray-600">
+          {isAdmin 
+            ? 'Monitor organization quiz activity and create new quizzes'
+            : 'Choose how you\'d like to generate your quiz questions'
+          }
+        </p>
       </div>
 
+      {/* Quiz Types Section - Show for all users */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
         {quizTypes.map((type, index) => (
           <Card 
@@ -77,9 +88,9 @@ const DashboardHome = () => {
         ))}
       </div>
 
-      {/* Recent Quiz Results Section */}
+      {/* Quiz Results Section - Different views for admin vs member */}
       <div className="mb-8">
-        <RecentQuizResults />
+        {isAdmin ? <AdminQuizResults /> : <RecentQuizResults />}
       </div>
     </div>
   )
