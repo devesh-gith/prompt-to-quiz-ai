@@ -1,8 +1,9 @@
 
-import { useOrganizationList, useUser } from '@clerk/clerk-react'
+import { useOrganizationList, useUser, useOrganization } from '@clerk/clerk-react'
 
 export const useOrganizationRole = () => {
   const { user } = useUser()
+  const { organization } = useOrganization()
   const { userMemberships, isLoaded } = useOrganizationList({
     userMemberships: {
       infinite: true,
@@ -34,8 +35,12 @@ export const useOrganizationRole = () => {
     }
   }
 
+  // Helper to check if current user is admin of current organization
+  const isAdmin = organization ? getCurrentOrganizationRole(organization.id).isAdmin : false
+
   return {
     getCurrentOrganizationRole,
-    isLoading: !isLoaded
+    isLoading: !isLoaded,
+    isAdmin
   }
 }

@@ -87,15 +87,18 @@ export const useAdminQuizResults = () => {
       )
 
       // Get organization members to get user details
-      const organizationMembers = organization.membershipList || []
+      const organizationMembers = organization.memberships || []
       const memberMap = new Map(
-        organizationMembers.map(member => [
-          member.publicUserData.userId,
-          {
-            name: `${member.publicUserData.firstName || ''} ${member.publicUserData.lastName || ''}`.trim() || 'Unknown User',
-            email: member.publicUserData.identifier || 'No email'
-          }
-        ])
+        organizationMembers.map(member => {
+          const userData = member.publicUserData
+          return [
+            userData?.userId || '',
+            {
+              name: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || 'Unknown User',
+              email: userData?.identifier || 'No email'
+            }
+          ]
+        })
       )
 
       // Combine the data
