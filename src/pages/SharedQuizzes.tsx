@@ -1,4 +1,3 @@
-
 import { useOrganization, useUser } from '@clerk/clerk-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -128,7 +127,12 @@ const SharedQuizzes = () => {
             </Button>
           </div>
         </div>
-        <QuizDisplay quiz={selectedQuiz.quiz_data} onRestart={handleBackToList} />
+        <QuizDisplay 
+          quiz={selectedQuiz.quiz_data} 
+          quizId={selectedQuiz.id}
+          quizTitle={selectedQuiz.title}
+          onBackToList={handleBackToList} 
+        />
       </div>
     )
   }

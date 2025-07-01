@@ -191,7 +191,7 @@ export const useSharedQuizzes = () => {
       return data
     } catch (error) {
       console.error('Error saving quiz result:', error)
-      return null
+      throw error
     }
   }
 

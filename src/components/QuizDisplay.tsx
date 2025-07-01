@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { CheckCircle, XCircle } from 'lucide-react'
+import { useSharedQuizzes } from '@/hooks/useSharedQuizzes'
+import { useToast } from '@/hooks/use-toast'
 
 interface Question {
   question: string
@@ -17,14 +19,19 @@ interface Quiz {
 
 interface QuizDisplayProps {
   quiz: Quiz
-  onRestart: () => void
+  quizId: string
+  quizTitle: string
+  onBackToList: () => void
 }
 
-const QuizDisplay = ({ quiz, onRestart }: QuizDisplayProps) => {
+const QuizDisplay = ({ quiz, quizId, quizTitle, onBackToList }: QuizDisplayProps) => {
+  const { saveQuizResult } = useSharedQuizzes()
+  const { toast } = useToast()
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([])
   const [showResults, setShowResults] = useState(false)
   const [score, setScore] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleAnswer = (answerIndex: number) => {
     const newAnswers = [...selectedAnswers]
@@ -51,6 +58,32 @@ const QuizDisplay = ({ quiz, onRestart }: QuizDisplayProps) => {
     }
   }
 
+  const handleSubmitQuiz = async () => {
+    setIsSubmitting(true)
+    try {
+      const result = await saveQuizResult(quizId, score, quiz.questions.length, selectedAnswers)
+      if (result) {
+        toast({
+          title: "Quiz Submitted Successfully!",
+          description: `Your score of ${score}/${quiz.questions.length} has been saved.`,
+        })
+        // Wait a moment then go back to list
+        setTimeout(() => {
+          onBackToList()
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Error submitting quiz:', error)
+      toast({
+        title: "Error",
+        description: "Failed to submit quiz. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   if (showResults) {
     return (
       <Card className="border-gray-200">
@@ -58,6 +91,7 @@ const QuizDisplay = ({ quiz, onRestart }: QuizDisplayProps) => {
           <CardTitle className="text-2xl font-bold text-black text-center">
             Quiz Results
           </CardTitle>
+          <p className="text-center text-gray-600">{quizTitle}</p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center">
@@ -100,9 +134,23 @@ const QuizDisplay = ({ quiz, onRestart }: QuizDisplayProps) => {
             })}
           </div>
 
-          <Button onClick={onRestart} className="w-full bg-black text-white hover:bg-gray-800">
-            Create Another Quiz
-          </Button>
+          <div className="flex gap-4">
+            <Button 
+              onClick={onBackToList} 
+              variant="outline"
+              className="flex-1 border-gray-300"
+              disabled={isSubmitting}
+            >
+              Back to Quiz Pool
+            </Button>
+            <Button 
+              onClick={handleSubmitQuiz} 
+              className="flex-1 bg-black text-white hover:bg-gray-800"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     )
@@ -121,6 +169,7 @@ const QuizDisplay = ({ quiz, onRestart }: QuizDisplayProps) => {
             Progress: {Math.round(((currentQuestion + 1) / quiz.questions.length) * 100)}%
           </div>
         </div>
+        <p className="text-gray-600">{quizTitle}</p>
       </CardHeader>
       <CardContent className="space-y-6">
         <h3 className="text-lg font-medium text-black">{question.question}</h3>
