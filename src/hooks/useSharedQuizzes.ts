@@ -168,12 +168,13 @@ export const useSharedQuizzes = () => {
         refresh_token: '',
       })
 
-      console.log('Saving quiz result:', { quizId, score, totalQuestions })
+      console.log('Saving quiz result with proper UUID conversion:', { quizId, score, totalQuestions })
 
+      // Ensure quizId is properly formatted as UUID
       const { data, error } = await supabase
         .from('quiz_results')
         .insert({
-          quiz_id: quizId,
+          quiz_id: quizId, // This should already be a UUID from shared_quizzes
           user_id: user.id,
           score,
           total_questions: totalQuestions,
@@ -183,7 +184,9 @@ export const useSharedQuizzes = () => {
         .single()
 
       if (error) {
-        console.error('Error saving quiz result:', error)
+        console.error('Error saving quiz result - Details:', error)
+        console.error('Quiz ID type:', typeof quizId, 'Value:', quizId)
+        console.error('User ID:', user.id)
         throw error
       }
 

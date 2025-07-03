@@ -61,12 +61,15 @@ const QuizDisplay = ({ quiz, quizId, quizTitle, onBackToList }: QuizDisplayProps
   const handleSubmitQuiz = async () => {
     setIsSubmitting(true)
     try {
+      console.log('Submitting quiz with ID:', quizId, 'Type:', typeof quizId)
+      
       const result = await saveQuizResult(quizId, score, quiz.questions.length, selectedAnswers)
       if (result) {
         toast({
           title: "Quiz Submitted Successfully!",
           description: `Your score of ${score}/${quiz.questions.length} has been saved.`,
         })
+        
         // Wait a moment then go back to list
         setTimeout(() => {
           onBackToList()
