@@ -5,7 +5,7 @@ import { MessageSquare, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import QuizDisplay from '@/components/QuizDisplay'
+import GeneratedQuizDisplay from '@/components/GeneratedQuizDisplay'
 import ShareToPoolButton from '@/components/ShareToPoolButton'
 
 const TextQuiz = () => {
@@ -91,7 +91,7 @@ const TextQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onRestart={handleRestart} />
+        <GeneratedQuizDisplay quiz={quiz} onRestart={handleRestart} />
       </div>
     )
   }

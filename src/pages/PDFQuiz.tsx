@@ -1,7 +1,7 @@
 
 import PDFQuizHeader from '@/components/PDFQuizHeader'
 import PDFQuizUpload from '@/components/PDFQuizUpload'
-import QuizDisplay from '@/components/QuizDisplay'
+import GeneratedQuizDisplay from '@/components/GeneratedQuizDisplay'
 import ShareToPoolButton from '@/components/ShareToPoolButton'
 import { usePDFQuizGeneration } from '@/hooks/usePDFQuizGeneration'
 
@@ -37,7 +37,7 @@ const PDFQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onRestart={resetQuiz} />
+        <GeneratedQuizDisplay quiz={quiz} onRestart={resetQuiz} />
       </div>
     )
   }
