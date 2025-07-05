@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { supabase } from '@/integrations/supabase/client'
@@ -29,13 +28,29 @@ export const useSharedQuizzes = () => {
         throw new Error('Failed to get authentication token')
       }
 
-      await supabase.auth.setSession({
+      // Set up the session
+      const { error: sessionError } = await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })
 
+      if (sessionError) {
+        console.error('Session setup error:', sessionError)
+        throw sessionError
+      }
+
+      // Debug: Check if we can get the current user ID
+      const { data: { user: supabaseUser }, error: userError } = await supabase.auth.getUser()
+      console.log('Supabase user after session setup:', supabaseUser?.id)
+      console.log('Clerk user ID:', user.id)
+
+      if (userError) {
+        console.error('Error getting Supabase user:', userError)
+      }
+
       console.log('Saving quiz with organization ID:', organization.id)
       console.log('Quiz data preview:', { title, quizType, questionsCount: quizData?.questions?.length })
+      console.log('Created by (user.id):', user.id)
 
       const { data, error } = await supabase
         .from('shared_quizzes')
@@ -52,6 +67,8 @@ export const useSharedQuizzes = () => {
 
       if (error) {
         console.error('Supabase error details:', error)
+        console.error('Error code:', error.code)
+        console.error('Error message:', error.message)
         throw error
       }
 
