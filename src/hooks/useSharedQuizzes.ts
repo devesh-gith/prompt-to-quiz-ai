@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { useToast } from '@/hooks/use-toast'
@@ -28,12 +29,21 @@ export const useSharedQuizzes = () => {
       console.log('User ID:', user.id)
       console.log('Organization ID:', organization.id)
       
-      const clerkToken = await getToken({ template: 'supabase' })
-      if (!clerkToken) {
-        throw new Error('Failed to get authentication token from Clerk. Please make sure the Supabase JWT template is configured in Clerk.')
+      // Try to get the Supabase template token first
+      let clerkToken = null
+      try {
+        clerkToken = await getToken({ template: 'supabase' })
+        console.log('Got Supabase template token, length:', clerkToken?.length || 0)
+      } catch (templateError) {
+        console.warn('Supabase template not available, trying default token:', templateError)
+        // Fallback to default token if Supabase template is not configured
+        clerkToken = await getToken()
+        console.log('Got default token, length:', clerkToken?.length || 0)
       }
       
-      console.log('Got Clerk token for Supabase, length:', clerkToken.length)
+      if (!clerkToken) {
+        throw new Error('Failed to get authentication token from Clerk. Please make sure you are logged in.')
+      }
 
       const data = await saveSharedQuiz(
         clerkToken,
@@ -56,7 +66,9 @@ export const useSharedQuizzes = () => {
       
       let errorMessage = "Failed to share quiz. Please try again."
       if (error instanceof Error) {
-        if (error.message.includes('Authentication token is invalid')) {
+        if (error.message.includes('JWSError') || error.message.includes('JWSInvalidSignature')) {
+          errorMessage = "Authentication configuration issue. Please make sure the Supabase JWT template is properly configured in your Clerk dashboard, or contact support."
+        } else if (error.message.includes('Authentication token is invalid')) {
           errorMessage = "Authentication failed. Please refresh the page and try again."
         } else if (error.message.includes('Supabase JWT template')) {
           errorMessage = "Authentication configuration issue. Please contact support."
@@ -86,7 +98,14 @@ export const useSharedQuizzes = () => {
 
     setIsLoading(true)
     try {
-      const clerkToken = await getToken({ template: 'supabase' })
+      let clerkToken = null
+      try {
+        clerkToken = await getToken({ template: 'supabase' })
+      } catch (templateError) {
+        console.warn('Supabase template not available, trying default token:', templateError)
+        clerkToken = await getToken()
+      }
+      
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
       }
