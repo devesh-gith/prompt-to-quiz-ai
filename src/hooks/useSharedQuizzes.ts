@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { useToast } from '@/hooks/use-toast'
@@ -31,10 +30,10 @@ export const useSharedQuizzes = () => {
       
       const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
-        throw new Error('Failed to get authentication token from Clerk')
+        throw new Error('Failed to get authentication token from Clerk. Please make sure the Supabase JWT template is configured in Clerk.')
       }
       
-      console.log('Got Clerk token, length:', clerkToken.length)
+      console.log('Got Clerk token for Supabase, length:', clerkToken.length)
 
       const data = await saveSharedQuiz(
         clerkToken,
@@ -57,8 +56,10 @@ export const useSharedQuizzes = () => {
       
       let errorMessage = "Failed to share quiz. Please try again."
       if (error instanceof Error) {
-        if (error.message.includes('Auth session missing') || error.message.includes('Authentication failed')) {
+        if (error.message.includes('Authentication token is invalid')) {
           errorMessage = "Authentication failed. Please refresh the page and try again."
+        } else if (error.message.includes('Supabase JWT template')) {
+          errorMessage = "Authentication configuration issue. Please contact support."
         } else if (error.message.includes('row-level security')) {
           errorMessage = "You don't have permission to share quizzes with this organization."
         } else {
