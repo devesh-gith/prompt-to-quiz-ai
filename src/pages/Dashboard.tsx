@@ -9,7 +9,7 @@ const Dashboard = () => {
   const { user, isLoaded } = useUser()
 
   if (!isLoaded) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return <div className="flex items-center justify-center min-h-screen font-poppins">Loading...</div>
   }
 
   return (
@@ -19,7 +19,7 @@ const Dashboard = () => {
       </SignedOut>
       <SignedIn>
         <SidebarProvider>
-          <div className="min-h-screen flex w-full bg-gray-50">
+          <div className="min-h-screen flex w-full bg-gray-50 font-poppins">
             <AppSidebar />
             <main className="flex-1">
               <header className="bg-white border-b border-gray-200">

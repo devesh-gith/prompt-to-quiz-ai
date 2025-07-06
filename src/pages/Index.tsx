@@ -11,7 +11,7 @@ const Index = () => {
   console.log("QuizGenius AI landing page rendering...");
   
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white font-poppins">
       <Header />
       <Hero />
       <Features />
@@ -21,7 +21,7 @@ const Index = () => {
       <FinalCTA />
       
       {/* Footer */}
-      <footer className="bg-black text-white py-12">
+      <footer className="bg-black text-white py-12 font-poppins">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
