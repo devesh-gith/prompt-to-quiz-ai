@@ -37,7 +37,7 @@ const FeaturesSection = () => {
   ]
 
   return (
-    <section id="features" className="py-20 feature-gradient font-poppins">
+    <section id="features" className="py-20 feature-gradient">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">

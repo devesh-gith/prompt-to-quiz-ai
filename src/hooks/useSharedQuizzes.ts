@@ -1,9 +1,8 @@
 
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
+import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import { saveSharedQuiz, fetchSharedQuizzes } from '@/services/sharedQuizzesService'
-import { fetchQuizResults, saveQuizResultData } from '@/services/quizResultsService'
 
 export const useSharedQuizzes = () => {
   const { user } = useUser()
@@ -25,35 +24,38 @@ export const useSharedQuizzes = () => {
 
     setIsSaving(true)
     try {
-      console.log('Starting quiz save process...')
-      console.log('User ID:', user.id)
-      console.log('Organization ID:', organization.id)
-      
-      // Try to get the Supabase template token first
-      let clerkToken = null
-      try {
-        clerkToken = await getToken({ template: 'supabase' })
-        console.log('Got Supabase template token, length:', clerkToken?.length || 0)
-      } catch (templateError) {
-        console.warn('Supabase template not available, trying default token:', templateError)
-        // Fallback to default token if Supabase template is not configured
-        clerkToken = await getToken()
-        console.log('Got default token, length:', clerkToken?.length || 0)
-      }
-      
+      const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
-        throw new Error('Failed to get authentication token from Clerk. Please make sure you are logged in.')
+        throw new Error('Failed to get authentication token')
       }
 
-      const data = await saveSharedQuiz(
-        clerkToken,
-        user.id,
-        organization.id,
-        quizData,
-        quizType,
-        title,
-        description
-      )
+      await supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
+      console.log('Saving quiz with organization ID:', organization.id)
+      console.log('Quiz data preview:', { title, quizType, questionsCount: quizData?.questions?.length })
+
+      const { data, error } = await supabase
+        .from('shared_quizzes')
+        .insert({
+          title,
+          description,
+          quiz_type: quizType,
+          quiz_data: quizData,
+          created_by: user.id,
+          organization_id: organization.id,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Supabase error details:', error)
+        throw error
+      }
+
+      console.log('Quiz saved successfully:', data)
 
       toast({
         title: "Success",
@@ -63,25 +65,9 @@ export const useSharedQuizzes = () => {
       return data
     } catch (error) {
       console.error('Error saving shared quiz:', error)
-      
-      let errorMessage = "Failed to share quiz. Please try again."
-      if (error instanceof Error) {
-        if (error.message.includes('JWSError') || error.message.includes('JWSInvalidSignature')) {
-          errorMessage = "Authentication configuration issue. Please make sure the Supabase JWT template is properly configured in your Clerk dashboard, or contact support."
-        } else if (error.message.includes('Authentication token is invalid')) {
-          errorMessage = "Authentication failed. Please refresh the page and try again."
-        } else if (error.message.includes('Supabase JWT template')) {
-          errorMessage = "Authentication configuration issue. Please contact support."
-        } else if (error.message.includes('row-level security')) {
-          errorMessage = "You don't have permission to share quizzes with this organization."
-        } else {
-          errorMessage = `Failed to share quiz: ${error.message}`
-        }
-      }
-      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Failed to share quiz. Please try again.",
         variant: "destructive",
       })
       return null
@@ -98,19 +84,32 @@ export const useSharedQuizzes = () => {
 
     setIsLoading(true)
     try {
-      let clerkToken = null
-      try {
-        clerkToken = await getToken({ template: 'supabase' })
-      } catch (templateError) {
-        console.warn('Supabase template not available, trying default token:', templateError)
-        clerkToken = await getToken()
-      }
-      
+      const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
       }
 
-      return await fetchSharedQuizzes(clerkToken, organization.id)
+      await supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
+      console.log('Fetching quizzes for organization:', organization.id)
+
+      const { data, error } = await supabase
+        .from('shared_quizzes')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching shared quizzes:', error)
+        throw error
+      }
+
+      console.log('Fetched quizzes:', data?.length || 0, 'quizzes')
+      return data || []
     } catch (error) {
       console.error('Error fetching shared quizzes:', error)
       return []
@@ -130,7 +129,22 @@ export const useSharedQuizzes = () => {
         throw new Error('Failed to get authentication token')
       }
 
-      return await fetchQuizResults(clerkToken, user.id)
+      await supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
+      const { data, error } = await supabase
+        .from('quiz_results')
+        .select('quiz_id')
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error fetching quiz results:', error)
+        return []
+      }
+
+      return data || []
     } catch (error) {
       console.error('Error fetching quiz results:', error)
       return []
@@ -149,7 +163,32 @@ export const useSharedQuizzes = () => {
         throw new Error('Failed to get authentication token')
       }
 
-      return await saveQuizResultData(clerkToken, user.id, quizId, score, totalQuestions, answers)
+      await supabase.auth.setSession({
+        access_token: clerkToken,
+        refresh_token: '',
+      })
+
+      console.log('Saving quiz result:', { quizId, score, totalQuestions })
+
+      const { data, error } = await supabase
+        .from('quiz_results')
+        .insert({
+          quiz_id: quizId,
+          user_id: user.id,
+          score,
+          total_questions: totalQuestions,
+          answers
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error saving quiz result:', error)
+        throw error
+      }
+
+      console.log('Quiz result saved successfully:', data)
+      return data
     } catch (error) {
       console.error('Error saving quiz result:', error)
       throw error

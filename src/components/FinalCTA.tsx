@@ -5,7 +5,7 @@ import { ArrowRight, Sparkles } from 'lucide-react'
 
 const FinalCTA = () => {
   return (
-    <section className="py-20 bg-black text-white relative overflow-hidden font-poppins">
+    <section className="py-20 bg-black text-white relative overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-r from-black via-gray-900 to-black"></div>
       

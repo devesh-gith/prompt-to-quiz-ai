@@ -5,7 +5,7 @@ import { ArrowRight, Sparkles } from 'lucide-react'
 
 const HeroSection = () => {
   return (
-    <section className="hero-gradient min-h-screen flex items-center justify-center pt-20 font-poppins">
+    <section className="hero-gradient min-h-screen flex items-center justify-center pt-20">
       <div className="container mx-auto px-4 text-center">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-center mb-6">
