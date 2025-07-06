@@ -1,18 +1,18 @@
 
-import { supabase } from '@/integrations/supabase/client'
-import { setupSupabaseSession } from './supabaseAuth'
+import { createAuthenticatedSupabaseClient } from './supabaseAuth'
 
 export const fetchQuizResults = async (clerkToken: string, userId: string) => {
-  await setupSupabaseSession(clerkToken)
+  const supabase = createAuthenticatedSupabaseClient(clerkToken)
 
   const { data, error } = await supabase
     .from('quiz_results')
-    .select('quiz_id')
+    .select('*')
     .eq('user_id', userId)
+    .order('completed_at', { ascending: false })
 
   if (error) {
     console.error('Error fetching quiz results:', error)
-    return []
+    throw error
   }
 
   return data || []
@@ -26,29 +26,24 @@ export const saveQuizResultData = async (
   totalQuestions: number,
   answers: any
 ) => {
-  await setupSupabaseSession(clerkToken)
-
-  console.log('Saving quiz result with proper UUID conversion:', { quizId, score, totalQuestions })
+  const supabase = createAuthenticatedSupabaseClient(clerkToken)
 
   const { data, error } = await supabase
     .from('quiz_results')
     .insert({
-      quiz_id: quizId,
       user_id: userId,
+      quiz_id: quizId,
       score,
       total_questions: totalQuestions,
-      answers
+      answers,
     })
     .select()
     .single()
 
   if (error) {
-    console.error('Error saving quiz result - Details:', error)
-    console.error('Quiz ID type:', typeof quizId, 'Value:', quizId)
-    console.error('User ID:', userId)
+    console.error('Error saving quiz result:', error)
     throw error
   }
 
-  console.log('Quiz result saved successfully:', data)
   return data
 }

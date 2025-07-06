@@ -1,40 +1,40 @@
 
-import { supabase } from '@/integrations/supabase/client'
+import { createClient } from '@supabase/supabase-js'
+
+const SUPABASE_URL = "https://wnaspljpcncshnnyrstt.supabase.co"
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYXNwbGpwY25jc2hubnlyc3R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMzM4NjQsImV4cCI6MjA2NjcwOTg2NH0.y95NQh-gQGwXcU4lyCUkqeZerSEJwC_3sotpAlu0bww"
+
+export const createAuthenticatedSupabaseClient = (clerkToken: string) => {
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${clerkToken}`,
+      },
+    },
+  })
+}
 
 export const setupSupabaseSession = async (clerkToken: string) => {
   try {
     console.log('Setting up Supabase session with Clerk token')
     
-    // Clear any existing session first
-    await supabase.auth.signOut()
+    // Create a client with the Clerk token in headers
+    const authenticatedClient = createAuthenticatedSupabaseClient(clerkToken)
     
-    // Set the session with the Clerk token
-    const { data, error: sessionError } = await supabase.auth.setSession({
-      access_token: clerkToken,
-      refresh_token: '', // Clerk tokens don't use refresh tokens in this context
-    })
-
-    if (sessionError) {
-      console.error('Session setup error:', sessionError)
-      throw new Error(`Failed to setup Supabase session: ${sessionError.message}`)
+    // Test the connection by trying to fetch user data
+    const { data: { user }, error } = await authenticatedClient.auth.getUser()
+    
+    if (error) {
+      console.error('Auth verification error:', error)
+      throw new Error(`Authentication failed: ${error.message}`)
     }
 
-    console.log('Session setup successful:', data.session?.user?.id)
-    
-    // Verify we can get the current user
-    const { data: { user: supabaseUser }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError) {
-      console.error('Error getting Supabase user after session setup:', userError)
-      throw new Error(`Failed to verify user session: ${userError.message}`)
+    if (!user) {
+      throw new Error('No user found with provided token')
     }
 
-    if (!supabaseUser) {
-      throw new Error('No user found after session setup')
-    }
-
-    console.log('Supabase user verified:', supabaseUser.id)
-    return supabaseUser
+    console.log('User authenticated successfully:', user.id)
+    return { user, client: authenticatedClient }
   } catch (error) {
     console.error('Complete session setup failed:', error)
     throw error

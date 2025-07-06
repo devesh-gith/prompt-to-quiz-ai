@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { useToast } from '@/hooks/use-toast'
@@ -56,7 +57,7 @@ export const useSharedQuizzes = () => {
       
       let errorMessage = "Failed to share quiz. Please try again."
       if (error instanceof Error) {
-        if (error.message.includes('Auth session missing')) {
+        if (error.message.includes('Auth session missing') || error.message.includes('Authentication failed')) {
           errorMessage = "Authentication failed. Please refresh the page and try again."
         } else if (error.message.includes('row-level security')) {
           errorMessage = "You don't have permission to share quizzes with this organization."

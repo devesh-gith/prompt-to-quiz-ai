@@ -1,6 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client'
-import { setupSupabaseSession } from './supabaseAuth'
+import { createAuthenticatedSupabaseClient } from './supabaseAuth'
 
 export const saveSharedQuiz = async (
   clerkToken: string,
@@ -11,8 +10,8 @@ export const saveSharedQuiz = async (
   title: string,
   description?: string
 ) => {
-  console.log('Setting up Supabase session for quiz save...')
-  await setupSupabaseSession(clerkToken)
+  console.log('Setting up authenticated Supabase client for quiz save...')
+  const supabase = createAuthenticatedSupabaseClient(clerkToken)
 
   console.log('Saving quiz with organization ID:', organizationId)
   console.log('Quiz data preview:', { title, quizType, questionsCount: quizData?.questions?.length })
@@ -46,7 +45,7 @@ export const fetchSharedQuizzes = async (
   clerkToken: string,
   organizationId: string
 ) => {
-  await setupSupabaseSession(clerkToken)
+  const supabase = createAuthenticatedSupabaseClient(clerkToken)
 
   console.log('Fetching quizzes for organization:', organizationId)
 
