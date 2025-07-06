@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { supabase } from '@/integrations/supabase/client'
@@ -35,7 +34,24 @@ export const useSharedQuizzes = () => {
       })
 
       console.log('Saving quiz with organization ID:', organization.id)
+      console.log('User ID:', user.id)
       console.log('Quiz data preview:', { title, quizType, questionsCount: quizData?.questions?.length })
+
+      // First, ensure the user is a member of the organization
+      const { error: membershipError } = await supabase
+        .from('organization_members')
+        .upsert({
+          user_id: user.id,
+          organization_id: organization.id,
+          role: 'admin' // Set as admin for now, you can modify this later
+        }, {
+          onConflict: 'user_id,organization_id'
+        })
+
+      if (membershipError) {
+        console.error('Error creating/updating membership:', membershipError)
+        // Continue anyway, might already exist
+      }
 
       const { data, error } = await supabase
         .from('shared_quizzes')

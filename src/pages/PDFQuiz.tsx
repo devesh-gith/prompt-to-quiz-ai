@@ -37,7 +37,7 @@ const PDFQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onRestart={resetQuiz} />
+        <QuizDisplay quiz={quiz} onBackToList={resetQuiz} />
       </div>
     )
   }
