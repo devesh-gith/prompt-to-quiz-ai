@@ -11,6 +11,7 @@ export const saveSharedQuiz = async (
   title: string,
   description?: string
 ) => {
+  console.log('Setting up Supabase session for quiz save...')
   await setupSupabaseSession(clerkToken)
 
   console.log('Saving quiz with organization ID:', organizationId)

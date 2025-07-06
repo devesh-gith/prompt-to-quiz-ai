@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useUser, useOrganization, useAuth } from '@clerk/clerk-react'
 import { useToast } from '@/hooks/use-toast'
@@ -25,10 +24,16 @@ export const useSharedQuizzes = () => {
 
     setIsSaving(true)
     try {
+      console.log('Starting quiz save process...')
+      console.log('User ID:', user.id)
+      console.log('Organization ID:', organization.id)
+      
       const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
-        throw new Error('Failed to get authentication token')
+        throw new Error('Failed to get authentication token from Clerk')
       }
+      
+      console.log('Got Clerk token, length:', clerkToken.length)
 
       const data = await saveSharedQuiz(
         clerkToken,
@@ -48,9 +53,21 @@ export const useSharedQuizzes = () => {
       return data
     } catch (error) {
       console.error('Error saving shared quiz:', error)
+      
+      let errorMessage = "Failed to share quiz. Please try again."
+      if (error instanceof Error) {
+        if (error.message.includes('Auth session missing')) {
+          errorMessage = "Authentication failed. Please refresh the page and try again."
+        } else if (error.message.includes('row-level security')) {
+          errorMessage = "You don't have permission to share quizzes with this organization."
+        } else {
+          errorMessage = `Failed to share quiz: ${error.message}`
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to share quiz. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
       return null
