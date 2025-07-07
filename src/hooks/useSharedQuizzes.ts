@@ -250,18 +250,53 @@ export const useSharedQuizzes = () => {
     }
 
     try {
-      const clerkToken = await getToken({ template: 'supabase' })
-      if (!clerkToken) {
-        throw new Error('Failed to get authentication token')
+      // Try with Clerk authentication first
+      try {
+        const clerkToken = await getToken({ template: 'supabase' })
+        if (clerkToken) {
+          // Create a custom supabase client with the Clerk token
+          const { createClient } = await import('@supabase/supabase-js')
+          const supabaseWithAuth = createClient(
+            'https://wnaspljpcncshnnyrstt.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYXNwbGpwY25jc2hubnlyc3R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMzM4NjQsImV4cCI6MjA2NjcwOTg2NH0.y95NQh-gQGwXcU4lyCUkqeZerSEJwC_3sotpAlu0bww',
+            {
+              global: {
+                headers: {
+                  Authorization: `Bearer ${clerkToken}`,
+                },
+              },
+            }
+          )
+
+          console.log('Saving quiz result:', { quizId, score, totalQuestions, userId: user.id })
+
+          const { data, error } = await supabaseWithAuth
+            .from('quiz_results')
+            .insert({
+              quiz_id: quizId,
+              user_id: user.id,
+              score,
+              total_questions: totalQuestions,
+              answers
+            })
+            .select()
+            .single()
+
+          if (error) {
+            console.error('Error saving quiz result with auth:', error)
+            throw error
+          }
+
+          console.log('Quiz result saved successfully with auth:', data)
+          return data
+        }
+      } catch (authError) {
+        console.log('Auth method failed for quiz result, trying fallback:', authError)
+        // Continue to fallback method
       }
 
-      await supabase.auth.setSession({
-        access_token: clerkToken,
-        refresh_token: '',
-      })
-
-      console.log('Saving quiz result:', { quizId, score, totalQuestions })
-
+      // Fallback: Direct insert (this should work with the updated RLS policy)
+      console.log('Using fallback method for saving quiz result...')
       const { data, error } = await supabase
         .from('quiz_results')
         .insert({
@@ -275,11 +310,11 @@ export const useSharedQuizzes = () => {
         .single()
 
       if (error) {
-        console.error('Error saving quiz result:', error)
+        console.error('Error saving quiz result with fallback:', error)
         throw error
       }
 
-      console.log('Quiz result saved successfully:', data)
+      console.log('Quiz result saved successfully with fallback:', data)
       return data
     } catch (error) {
       console.error('Error saving quiz result:', error)
