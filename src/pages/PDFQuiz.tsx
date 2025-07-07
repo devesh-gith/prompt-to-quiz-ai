@@ -37,7 +37,12 @@ const PDFQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onBackToList={resetQuiz} />
+        <QuizDisplay 
+          quiz={quiz} 
+          quizId="pdf-quiz" 
+          quizTitle={`PDF Quiz - ${selectedFile?.name || 'Generated'}`} 
+          onBackToList={resetQuiz} 
+        />
       </div>
     )
   }

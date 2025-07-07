@@ -91,7 +91,12 @@ const PromptQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onBackToList={handleRestart} />
+        <QuizDisplay 
+          quiz={quiz} 
+          quizId="prompt-quiz" 
+          quizTitle={`Prompt Quiz - ${prompt.slice(0, 50)}...`} 
+          onBackToList={handleRestart} 
+        />
       </div>
     )
   }

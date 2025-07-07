@@ -93,7 +93,12 @@ const YouTubeQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onBackToList={handleRestart} />
+        <QuizDisplay 
+          quiz={quiz} 
+          quizId="youtube-quiz" 
+          quizTitle={`YouTube Quiz - ${youtubeUrl}`} 
+          onBackToList={handleRestart} 
+        />
       </div>
     )
   }

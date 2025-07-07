@@ -145,7 +145,12 @@ const ImageQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onRestart={handleRestart} />
+        <QuizDisplay 
+          quiz={quiz} 
+          quizId="image-quiz" 
+          quizTitle="Image Quiz" 
+          onBackToList={handleRestart} 
+        />
       </div>
     )
   }

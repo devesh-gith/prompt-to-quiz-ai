@@ -91,7 +91,12 @@ const TextQuiz = () => {
             </div>
           </div>
         </div>
-        <QuizDisplay quiz={quiz} onBackToList={handleRestart} />
+        <QuizDisplay 
+          quiz={quiz} 
+          quizId="text-quiz" 
+          quizTitle="Text Quiz" 
+          onBackToList={handleRestart} 
+        />
       </div>
     )
   }
