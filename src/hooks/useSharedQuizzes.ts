@@ -23,15 +23,25 @@ export const useSharedQuizzes = () => {
 
     setIsSaving(true)
     try {
+      // Get fresh Clerk token for Supabase
       const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
       }
 
-      await supabase.auth.setSession({
+      // Set the Supabase session with the Clerk token
+      const { error: authError } = await supabase.auth.setSession({
         access_token: clerkToken,
         refresh_token: '',
       })
+
+      if (authError) {
+        console.error('Auth session error:', authError)
+        throw new Error('Failed to authenticate with Supabase')
+      }
+
+      // Wait a moment for the session to be established
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       console.log('Saving quiz with organization ID:', organization.id)
       console.log('User ID:', user.id)
