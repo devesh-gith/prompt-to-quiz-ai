@@ -29,26 +29,26 @@ export const useSharedQuizzes = () => {
         throw new Error('Failed to get authentication token')
       }
 
-      // Set the Supabase session with the Clerk token
-      const { error: authError } = await supabase.auth.setSession({
-        access_token: clerkToken,
-        refresh_token: '',
-      })
-
-      if (authError) {
-        console.error('Auth session error:', authError)
-        throw new Error('Failed to authenticate with Supabase')
-      }
-
-      // Wait a moment for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Create a custom supabase client with the Clerk token
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabaseWithAuth = createClient(
+        'https://wnaspljpcncshnnyrstt.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYXNwbGpwY25jc2hubnlyc3R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMzM4NjQsImV4cCI6MjA2NjcwOTg2NH0.y95NQh-gQGwXcU4lyCUkqeZerSEJwC_3sotpAlu0bww',
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${clerkToken}`,
+            },
+          },
+        }
+      )
 
       console.log('Saving quiz with organization ID:', organization.id)
       console.log('User ID:', user.id)
       console.log('Quiz data preview:', { title, quizType, questionsCount: quizData?.questions?.length })
 
       // First, ensure the user is a member of the organization
-      const { error: membershipError } = await supabase
+      const { error: membershipError } = await supabaseWithAuth
         .from('organization_members')
         .upsert({
           user_id: user.id,
@@ -63,7 +63,7 @@ export const useSharedQuizzes = () => {
         // Continue anyway, might already exist
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseWithAuth
         .from('shared_quizzes')
         .insert({
           title,
