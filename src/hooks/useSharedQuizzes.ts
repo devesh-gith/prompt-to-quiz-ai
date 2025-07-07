@@ -283,7 +283,10 @@ export const useSharedQuizzes = () => {
             .single()
 
           if (error) {
-            console.error('Error saving quiz result with auth:', error)
+            // If we get RLS or JWT error, throw to trigger fallback
+            if (error.code === '42501' || error.code === 'PGRST301' || error.message?.includes('JWS')) {
+              throw new Error('AUTH_ERROR')
+            }
             throw error
           }
 
@@ -291,31 +294,48 @@ export const useSharedQuizzes = () => {
           return data
         }
       } catch (authError) {
-        console.log('Auth method failed for quiz result, trying fallback:', authError)
-        // Continue to fallback method
+        console.log('Auth method failed for quiz result, trying edge function:', authError)
+        // Continue to edge function fallback
       }
 
-      // Fallback: Direct insert (this should work with the updated RLS policy)
-      console.log('Using fallback method for saving quiz result...')
-      const { data, error } = await supabase
-        .from('quiz_results')
-        .insert({
+      // First fallback: Use edge function to bypass RLS
+      console.log('Using edge function for saving quiz result...')
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('save-quiz-result-bypass', {
+        body: {
           quiz_id: quizId,
           user_id: user.id,
           score,
           total_questions: totalQuestions,
           answers
-        })
-        .select()
-        .single()
+        }
+      })
 
-      if (error) {
-        console.error('Error saving quiz result with fallback:', error)
-        throw error
+      if (functionError) {
+        console.log('Edge function failed, trying direct insert...', functionError)
+        // Final fallback: Direct insert
+        const { data, error } = await supabase
+          .from('quiz_results')
+          .insert({
+            quiz_id: quizId,
+            user_id: user.id,
+            score,
+            total_questions: totalQuestions,
+            answers
+          })
+          .select()
+          .single()
+
+        if (error) {
+          console.error('All methods failed for quiz result:', error)
+          throw new Error('Unable to save quiz result - please try again')
+        }
+
+        console.log('Quiz result saved successfully with direct insert:', data)
+        return data
       }
 
-      console.log('Quiz result saved successfully with fallback:', data)
-      return data
+      console.log('Quiz result saved successfully with edge function:', functionData)
+      return functionData
     } catch (error) {
       console.error('Error saving quiz result:', error)
       throw error
