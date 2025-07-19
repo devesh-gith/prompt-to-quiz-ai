@@ -60,24 +60,41 @@ export const useAdminQuizResults = () => {
       }
 
       // Get organization members using the getMemberships method
+      console.log('Fetching organization members...')
       const memberships = await organization.getMemberships()
-      const memberMap = new Map<string, UserInfo>(
-        memberships.data?.map(membership => {
+      console.log('Raw memberships data:', memberships.data?.length || 0, 'members')
+      
+      const memberMap = new Map<string, UserInfo>()
+      
+      if (memberships.data) {
+        memberships.data.forEach(membership => {
           const userData = membership.publicUserData
-          return [
-            userData?.userId || '',
-            {
-              name: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || 'Unknown User',
-              email: userData?.identifier || 'No email'
-            }
-          ]
-        }) || []
-      )
+          const userId = userData?.userId
+          
+          if (userId) {
+            const firstName = userData?.firstName || ''
+            const lastName = userData?.lastName || ''
+            const fullName = `${firstName} ${lastName}`.trim()
+            const email = userData?.identifier || 'No email'
+            
+            memberMap.set(userId, {
+              name: fullName || email.split('@')[0] || 'Unknown User',
+              email: email
+            })
+            
+            console.log('Added member:', userId, fullName || email)
+          }
+        })
+      }
+      
+      console.log('Created member map with', memberMap.size, 'members')
 
       // Format the results
       const formattedResults = results.map((result: any) => {
         const userInfo = memberMap.get(result.user_id)
         const quiz = result.shared_quizzes
+        
+        console.log('Formatting result for user:', result.user_id, 'found info:', userInfo)
         
         return {
           id: result.id,
@@ -88,7 +105,7 @@ export const useAdminQuizResults = () => {
           quiz_title: quiz?.title || 'Unknown Quiz',
           quiz_type: quiz?.quiz_type || 'unknown',
           user_id: result.user_id,
-          user_name: userInfo?.name || 'Unknown User',
+          user_name: userInfo?.name || `User ${result.user_id.slice(-4)}`,
           user_email: userInfo?.email || 'No email'
         }
       })
