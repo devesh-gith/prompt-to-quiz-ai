@@ -38,58 +38,26 @@ export const useAdminQuizResults = () => {
 
     setIsLoading(true)
     try {
-      const clerkToken = await getToken({ template: 'supabase' })
-      if (!clerkToken) {
-        throw new Error('Failed to get authentication token')
-      }
-
-      await supabase.auth.setSession({
-        access_token: clerkToken,
-        refresh_token: '',
-      })
-
       console.log('Fetching admin quiz results for organization:', organization.id)
 
-      // First, get all quiz results for quizzes in this organization
-      const { data: quizResultsData, error: resultsError } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .order('completed_at', { ascending: false })
-        .limit(50) // Show more results for admins
+      // Use the edge function to get results with admin privileges
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('get-admin-quiz-results', {
+        body: { organization_id: organization.id }
+      })
 
-      if (resultsError) {
-        console.error('Error fetching quiz results:', resultsError)
-        throw resultsError
+      if (functionError) {
+        console.error('Error calling admin results function:', functionError)
+        throw functionError
       }
 
-      if (!quizResultsData || quizResultsData.length === 0) {
-        console.log('No quiz results found')
+      const results = functionData?.data || []
+      console.log('Fetched admin results from function:', results.length, 'results')
+
+      if (!results || results.length === 0) {
+        console.log('No quiz results found for organization')
         setResults([])
         return []
       }
-
-      // Get unique quiz IDs
-      const quizIds = [...new Set(quizResultsData.map(result => result.quiz_id))]
-
-      // Fetch quiz details from shared_quizzes for this organization
-      const { data: quizData, error: quizError } = await supabase
-        .from('shared_quizzes')
-        .select('id, title, quiz_type')
-        .in('id', quizIds)
-        .eq('organization_id', organization.id)
-
-      if (quizError) {
-        console.error('Error fetching quiz details:', quizError)
-        throw quizError
-      }
-
-      // Create a map for quick lookup
-      const quizMap = new Map(quizData?.map(quiz => [quiz.id, quiz]) || [])
-
-      // Filter results to only include quizzes from this organization
-      const organizationResults = quizResultsData.filter(result => 
-        quizMap.has(result.quiz_id)
-      )
 
       // Get organization members using the getMemberships method
       const memberships = await organization.getMemberships()
@@ -106,10 +74,10 @@ export const useAdminQuizResults = () => {
         }) || []
       )
 
-      // Combine the data
-      const formattedResults = organizationResults.map(result => {
-        const quiz = quizMap.get(result.quiz_id)
+      // Format the results
+      const formattedResults = results.map((result: any) => {
         const userInfo = memberMap.get(result.user_id)
+        const quiz = result.shared_quizzes
         
         return {
           id: result.id,
@@ -125,7 +93,7 @@ export const useAdminQuizResults = () => {
         }
       })
 
-      console.log('Fetched admin results:', formattedResults.length, 'results')
+      console.log('Formatted admin results:', formattedResults.length, 'results')
       setResults(formattedResults)
       return formattedResults
     } catch (error) {
