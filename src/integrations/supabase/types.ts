@@ -136,6 +136,7 @@ export type Database = {
       }
       shared_quizzes: {
         Row: {
+          attempt_limit: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -147,6 +148,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          attempt_limit?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -158,6 +160,7 @@ export type Database = {
           title: string
         }
         Update: {
+          attempt_limit?: string | null
           created_at?: string
           created_by?: string
           description?: string | null

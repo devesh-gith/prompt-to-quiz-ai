@@ -12,6 +12,7 @@ interface AdminQuizResult {
   completed_at: string
   quiz_title: string
   quiz_type: string
+  attempt_limit: 'once' | 'multiple'
   user_id: string
   user_name: string
   user_email: string
@@ -104,6 +105,7 @@ export const useAdminQuizResults = () => {
           completed_at: result.completed_at,
           quiz_title: quiz?.title || 'Unknown Quiz',
           quiz_type: quiz?.quiz_type || 'unknown',
+          attempt_limit: quiz?.attempt_limit || 'multiple',
           user_id: result.user_id,
           user_name: userInfo?.name || `User ${result.user_id.slice(-4)}`,
           user_email: userInfo?.email || 'No email'

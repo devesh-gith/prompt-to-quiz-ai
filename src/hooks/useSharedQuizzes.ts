@@ -11,7 +11,7 @@ export const useSharedQuizzes = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const saveToSharedQuizzes = async (quizData: any, quizType: string, title: string, description?: string) => {
+  const saveToSharedQuizzes = async (quizData: any, quizType: string, title: string, description?: string, attemptLimit: 'once' | 'multiple' = 'multiple') => {
     if (!user || !organization) {
       toast({
         title: "Error",
@@ -70,6 +70,7 @@ export const useSharedQuizzes = () => {
               quiz_data: quizData,
               created_by: user.id,
               organization_id: organization.id,
+              attempt_limit: attemptLimit
             })
             .select()
             .single()
@@ -117,6 +118,7 @@ export const useSharedQuizzes = () => {
           quiz_data: quizData,
           created_by: user.id,
           organization_id: organization.id,
+          attempt_limit: attemptLimit
         }
       })
 
@@ -132,6 +134,7 @@ export const useSharedQuizzes = () => {
             quiz_data: quizData,
             created_by: user.id,
             organization_id: organization.id,
+            attempt_limit: attemptLimit
           })
           .select()
           .single()

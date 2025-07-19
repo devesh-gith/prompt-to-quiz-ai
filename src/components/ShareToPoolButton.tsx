@@ -25,14 +25,15 @@ const ShareToPoolButton = ({
   const { getCurrentOrganizationRole } = useOrganizationRole()
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleShare = async (customTitle: string, customDescription: string) => {
+  const handleShare = async (customTitle: string, customDescription: string, attemptLimit: 'once' | 'multiple') => {
     if (!organization || !quizData) return
     
     const result = await saveToSharedQuizzes(
       quizData, 
       quizType, 
       customTitle, 
-      customDescription
+      customDescription,
+      attemptLimit
     )
     
     if (result) {

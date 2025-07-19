@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { title, description, quiz_type, quiz_data, created_by, organization_id } = await req.json()
+    const { title, description, quiz_type, quiz_data, created_by, organization_id, attempt_limit } = await req.json()
 
     // Create Supabase client with service role key to bypass RLS
     const supabaseAdmin = createClient(
@@ -30,6 +30,7 @@ serve(async (req) => {
         quiz_data,
         created_by,
         organization_id,
+        attempt_limit: attempt_limit || 'multiple'
       })
       .select()
       .single()

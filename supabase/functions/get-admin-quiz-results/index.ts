@@ -60,7 +60,7 @@ serve(async (req) => {
     
     const { data: organizationQuizzes, error: quizzesError } = await supabaseAdmin
       .from('shared_quizzes')
-      .select('id, title, quiz_type, organization_id')
+      .select('id, title, quiz_type, organization_id, attempt_limit')
       .in('id', quizIds)
       .eq('organization_id', organization_id);
 

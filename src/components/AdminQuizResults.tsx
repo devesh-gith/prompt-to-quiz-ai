@@ -103,6 +103,7 @@ const AdminQuizResults = () => {
               <TableRow className="bg-gray-50">
                 <TableHead className="font-semibold text-black">Member</TableHead>
                 <TableHead className="font-semibold text-black">Quiz</TableHead>
+                <TableHead className="font-semibold text-black">Attempt Limit</TableHead>
                 <TableHead className="font-semibold text-black">Score</TableHead>
                 <TableHead className="font-semibold text-black">Performance</TableHead>
                 <TableHead className="font-semibold text-black">Date</TableHead>
@@ -144,6 +145,15 @@ const AdminQuizResults = () => {
                           </Badge>
                         </div>
                       </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${result.attempt_limit === 'once' ? 'border-orange-400 text-orange-600' : 'border-green-400 text-green-600'}`}
+                      >
+                        {result.attempt_limit === 'once' ? 'One Time Only' : 'Multiple Attempts'}
+                      </Badge>
                     </TableCell>
                     
                     <TableCell>

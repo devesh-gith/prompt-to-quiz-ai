@@ -199,7 +199,23 @@ const SharedQuizzes = () => {
 
       {quizzes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {quizzes.map((quiz: any) => {
+          {quizzes
+            .filter((quiz: any) => {
+              const timeRemaining = getTimeRemaining(quiz.expires_at)
+              const isExpired = timeRemaining === 'Expired'
+              const hasBeenTaken = takenQuizzes.has(quiz.id)
+              
+              // Filter out expired quizzes
+              if (isExpired) return false
+              
+              // If quiz is "once" only and user has already taken it, hide it
+              if (quiz.attempt_limit === 'once' && hasBeenTaken) {
+                return false
+              }
+              
+              return true
+            })
+            .map((quiz: any) => {
             const IconComponent = getQuizIcon(quiz.quiz_type)
             const timeRemaining = getTimeRemaining(quiz.expires_at)
             const isExpiringSoon = timeRemaining.includes('min left') && parseInt(timeRemaining) <= 10
@@ -237,6 +253,12 @@ const SharedQuizzes = () => {
                       <Clock className="h-3 w-3 mr-1" />
                       {timeRemaining}
                     </Badge>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${quiz.attempt_limit === 'once' ? 'border-orange-400 text-orange-600' : 'border-green-400 text-green-600'}`}
+                    >
+                      {quiz.attempt_limit === 'once' ? 'One Time Only' : 'Multiple Attempts'}
+                    </Badge>
                     {hasBeenTaken && (
                       <Badge className="bg-black text-white">
                         <CheckCircle className="h-3 w-3 mr-1" />
@@ -271,15 +293,22 @@ const SharedQuizzes = () => {
                   <div className="pt-4 border-t border-gray-100">
                     <Button 
                       className={`w-full transition-all duration-200 ${
-                        isExpired || hasBeenTaken
+                        isExpired || (hasBeenTaken && quiz.attempt_limit === 'once')
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                           : 'bg-black hover:bg-gray-800 text-white border-2 border-black hover:border-gray-800'
                       }`}
-                      disabled={isExpired || hasBeenTaken}
+                      disabled={isExpired || (hasBeenTaken && quiz.attempt_limit === 'once')}
                       onClick={() => handleTakeQuiz(quiz)}
                     >
                       <Play className="h-4 w-4 mr-2" />
-                      {isExpired ? 'Quiz Expired' : hasBeenTaken ? 'Already Completed' : 'Take Quiz'}
+                      {isExpired 
+                        ? 'Quiz Expired' 
+                        : (hasBeenTaken && quiz.attempt_limit === 'once')
+                          ? 'Already Completed' 
+                          : hasBeenTaken 
+                            ? 'Retake Quiz' 
+                            : 'Take Quiz'
+                      }
                     </Button>
                   </div>
                 </CardContent>
