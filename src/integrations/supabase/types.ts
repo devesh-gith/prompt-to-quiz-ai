@@ -93,15 +93,7 @@ export type Database = {
           total_questions?: number
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_results_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       quizzes: {
         Row: {

@@ -104,6 +104,34 @@ export const useRecentQuizResults = () => {
     fetchRecentResults()
   }, [user])
 
+  // Set up real-time subscription for quiz results
+  useEffect(() => {
+    if (!user?.id) return
+
+    console.log('Setting up real-time subscription for user quiz results')
+    const channel = supabase
+      .channel('user-quiz-results')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'quiz_results',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          console.log('New quiz result detected, refreshing...')
+          fetchRecentResults()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('Cleaning up real-time subscription')
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id])
+
   return {
     results,
     isLoading,

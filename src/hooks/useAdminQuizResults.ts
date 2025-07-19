@@ -142,6 +142,33 @@ export const useAdminQuizResults = () => {
     }
   }, [user, organization, isAdmin])
 
+  // Set up real-time subscription for quiz results in organization
+  useEffect(() => {
+    if (!user || !organization?.id || !isAdmin) return
+
+    console.log('Setting up real-time subscription for admin quiz results')
+    const channel = supabase
+      .channel('admin-quiz-results')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'quiz_results'
+        },
+        () => {
+          console.log('New organization quiz result detected, refreshing...')
+          fetchAdminResults()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('Cleaning up admin real-time subscription')
+      supabase.removeChannel(channel)
+    }
+  }, [user, organization?.id, isAdmin])
+
   return {
     results,
     isLoading,
