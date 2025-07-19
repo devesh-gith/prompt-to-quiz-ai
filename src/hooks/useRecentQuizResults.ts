@@ -27,6 +27,52 @@ export const useRecentQuizResults = () => {
 
     setIsLoading(true)
     try {
+      console.log('Fetching recent quiz results for user:', user.id)
+
+      // Use the admin edge function since RLS is problematic
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('get-user-quiz-results', {
+        body: { user_id: user.id }
+      })
+
+      if (functionError) {
+        console.error('Error calling user results function:', functionError)
+        // Fallback to direct query if function fails
+        return await fetchRecentResultsDirect()
+      }
+
+      const results = functionData?.data || []
+      console.log('Fetched user results from function:', results.length, 'results')
+
+      if (!results || results.length === 0) {
+        console.log('No quiz results found for user')
+        setResults([])
+        return []
+      }
+
+      // Format the results
+      const formattedResults = results.map((result: any) => ({
+        id: result.id,
+        quiz_id: result.quiz_id,
+        score: result.score,
+        total_questions: result.total_questions,
+        completed_at: result.completed_at,
+        quiz_title: result.shared_quizzes?.title || 'Unknown Quiz',
+        quiz_type: result.shared_quizzes?.quiz_type || 'unknown'
+      }))
+
+      console.log('Formatted user results:', formattedResults.length, 'results')
+      setResults(formattedResults)
+      return formattedResults
+    } catch (error) {
+      console.error('Error fetching recent quiz results:', error)
+      return []
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fetchRecentResultsDirect = async () => {
+    try {
       const clerkToken = await getToken({ template: 'supabase' })
       if (!clerkToken) {
         throw new Error('Failed to get authentication token')
@@ -37,23 +83,23 @@ export const useRecentQuizResults = () => {
         refresh_token: '',
       })
 
-      console.log('Fetching recent quiz results for user:', user.id)
+      console.log('Fetching recent quiz results directly for user:', user?.id)
 
-      // First, get quiz results
+      // Get quiz results directly
       const { data: quizResultsData, error: resultsError } = await supabase
         .from('quiz_results')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .order('completed_at', { ascending: false })
         .limit(10)
 
       if (resultsError) {
-        console.error('Error fetching quiz results:', resultsError)
+        console.error('Error fetching quiz results directly:', resultsError)
         throw resultsError
       }
 
       if (!quizResultsData || quizResultsData.length === 0) {
-        console.log('No quiz results found')
+        console.log('No quiz results found directly')
         setResults([])
         return []
       }
@@ -68,7 +114,7 @@ export const useRecentQuizResults = () => {
         .in('id', quizIds)
 
       if (quizError) {
-        console.error('Error fetching quiz details:', quizError)
+        console.error('Error fetching quiz details directly:', quizError)
         throw quizError
       }
 
@@ -89,14 +135,13 @@ export const useRecentQuizResults = () => {
         }
       })
 
-      console.log('Fetched recent results:', formattedResults.length, 'results')
+      console.log('Fetched recent results directly:', formattedResults.length, 'results')
       setResults(formattedResults)
       return formattedResults
     } catch (error) {
-      console.error('Error fetching recent quiz results:', error)
+      console.error('Error fetching recent quiz results directly:', error)
+      setResults([])
       return []
-    } finally {
-      setIsLoading(false)
     }
   }
 

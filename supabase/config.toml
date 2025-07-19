@@ -1,1 +1,7 @@
 project_id = "wnaspljpcncshnnyrstt"
+
+[functions.get-admin-quiz-results]
+verify_jwt = false
+
+[functions.get-user-quiz-results]
+verify_jwt = false

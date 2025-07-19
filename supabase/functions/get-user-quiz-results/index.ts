@@ -13,11 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    const { organization_id } = await req.json();
+    const { user_id } = await req.json();
 
-    if (!organization_id) {
+    if (!user_id) {
       return new Response(
-        JSON.stringify({ error: 'Organization ID is required' }),
+        JSON.stringify({ error: 'User ID is required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -31,58 +31,56 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Fetching admin quiz results for organization:', organization_id);
+    console.log('Fetching user quiz results for user:', user_id);
 
-    // First get all quiz results
-    const { data: allResults, error: resultsError } = await supabaseAdmin
+    // Get quiz results for this user
+    const { data: userResults, error: resultsError } = await supabaseAdmin
       .from('quiz_results')
       .select('*')
+      .eq('user_id', user_id)
       .order('completed_at', { ascending: false })
-      .limit(100);
+      .limit(10);
 
     if (resultsError) {
-      console.error('Error fetching quiz results:', resultsError);
+      console.error('Error fetching user quiz results:', resultsError);
       throw resultsError;
     }
 
-    console.log('Fetched all quiz results:', allResults?.length || 0);
+    console.log('Fetched user quiz results:', userResults?.length || 0);
 
-    if (!allResults || allResults.length === 0) {
-      console.log('No quiz results found');
+    if (!userResults || userResults.length === 0) {
+      console.log('No quiz results found for user');
       return new Response(
         JSON.stringify({ data: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get quiz IDs and fetch shared quizzes for this organization
-    const quizIds = [...new Set(allResults.map(result => result.quiz_id))];
+    // Get quiz IDs and fetch shared quizzes details
+    const quizIds = [...new Set(userResults.map(result => result.quiz_id))];
     
-    const { data: organizationQuizzes, error: quizzesError } = await supabaseAdmin
+    const { data: quizzes, error: quizzesError } = await supabaseAdmin
       .from('shared_quizzes')
-      .select('id, title, quiz_type, organization_id')
-      .in('id', quizIds)
-      .eq('organization_id', organization_id);
+      .select('id, title, quiz_type')
+      .in('id', quizIds);
 
     if (quizzesError) {
-      console.error('Error fetching organization quizzes:', quizzesError);
+      console.error('Error fetching quiz details:', quizzesError);
       throw quizzesError;
     }
 
-    console.log('Fetched organization quizzes:', organizationQuizzes?.length || 0);
+    console.log('Fetched quiz details:', quizzes?.length || 0);
 
     // Create a map for quick lookup
-    const quizMap = new Map(organizationQuizzes?.map(quiz => [quiz.id, quiz]) || []);
+    const quizMap = new Map(quizzes?.map(quiz => [quiz.id, quiz]) || []);
 
-    // Filter results to only include quizzes from this organization and add quiz details
-    const results = allResults
-      .filter(result => quizMap.has(result.quiz_id))
-      .map(result => ({
-        ...result,
-        shared_quizzes: quizMap.get(result.quiz_id)
-      }));
+    // Add quiz details to results
+    const results = userResults.map(result => ({
+      ...result,
+      shared_quizzes: quizMap.get(result.quiz_id)
+    }));
 
-    console.log('Filtered results for organization:', results?.length || 0, 'quiz results');
+    console.log('Final user results:', results?.length || 0, 'quiz results');
 
     return new Response(
       JSON.stringify({ data: results || [] }),
@@ -90,7 +88,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in get-admin-quiz-results:', error);
+    console.error('Error in get-user-quiz-results:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
