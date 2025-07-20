@@ -54,6 +54,11 @@ const Auth = () => {
                 elements: {
                   rootBox: "w-full",
                   card: "shadow-none border-none",
+                  footer: "hidden",
+                  formButtonPrimary: "bg-black hover:bg-gray-800 text-white",
+                  logoBox: "hidden",
+                  headerTitle: "text-2xl font-bold text-gray-900",
+                  headerSubtitle: "text-gray-600",
                 }
               }}
             />
@@ -65,6 +70,11 @@ const Auth = () => {
                 elements: {
                   rootBox: "w-full",
                   card: "shadow-none border-none",
+                  footer: "hidden",
+                  formButtonPrimary: "bg-black hover:bg-gray-800 text-white",
+                  logoBox: "hidden",
+                  headerTitle: "text-2xl font-bold text-gray-900",
+                  headerSubtitle: "text-gray-600",
                 }
               }}
             />
