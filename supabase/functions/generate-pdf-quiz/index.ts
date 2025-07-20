@@ -29,11 +29,17 @@ serve(async (req) => {
     // Extract text from PDF using OpenAI
     const extractedText = await extractTextFromPDF(pdfData, openAIApiKey);
     
+    console.log('Text extraction completed. Length:', extractedText.length);
+    console.log('Extracted text sample (first 200 chars):', extractedText.substring(0, 200));
+    
     // Validate extracted text
     const validation = validateExtractedText(extractedText);
     if (!validation.isValid) {
+      console.log('Text validation failed:', validation.error);
       return createErrorResponse(validation.error!, 400);
     }
+    
+    console.log('Text validation passed. Proceeding with quiz generation...');
 
     // Generate quiz from extracted text
     const quizData = await generateQuizFromText(extractedText, questionCount, openAIApiKey);
